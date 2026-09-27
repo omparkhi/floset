@@ -1,0 +1,21 @@
+{
+  "name": "floset-server",
+  "version": "1.0.0",
+  "description": "Backend API for FloSet fashion rental marketplace",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node utils/seedData.js",
+    "seed:journal": "node utils/seedJournalArticles.js",
+    "create:admin": "node utils/createAdmin.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5"
+  }
+}

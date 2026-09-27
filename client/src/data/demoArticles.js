@@ -1,0 +1,47 @@
+export const demoArticles = [
+  {
+    _id: 'demo-journal-001',
+    title: 'How to Choose Occasion Wear Without Overbuying',
+    slug: 'occasion-wear-without-overbuying',
+    summary: 'A practical guide to renting statement pieces for weddings, receptions, date nights, and formal events.',
+    content:
+      'Occasion wear is usually where closets get crowded fastest. A lehenga, tuxedo, gown, or silk saree can feel essential for one event and then spend years waiting for another perfect moment.\n\nRenting changes that equation. Instead of buying around every invitation, start with the dress code, venue, season, and how visible you want the outfit to feel. The right rental should solve the event, photograph beautifully, and return to circulation after the night is done.\n\nFit notes matter more than labels. Check bust, waist, length, shoulder, and closure details before falling in love with the image. A slightly quieter outfit that fits well will always look more expensive than a dramatic piece that fights your proportions.',
+    tag: 'Style Guide',
+    image: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?q=80&w=1200&auto=format&fit=crop',
+    readTime: '4 min read',
+    sourceName: 'FLOSET Editorial',
+    sourceUrl: '',
+    publishedAt: '2026-09-01T00:00:00.000Z',
+    featured: true,
+  },
+  {
+    _id: 'demo-journal-002',
+    title: 'The Circular Fashion Revolution',
+    slug: 'circular-fashion-revolution',
+    summary: 'Why rental, repair, resale, and reuse are becoming core to a lower-waste fashion system.',
+    content:
+      'Fashion has historically been built around a linear pattern: make, sell, wear briefly, discard. Circular fashion changes the question from what should we produce next to how do we keep existing garments in use for longer.\n\nRental is a natural fit for occasion wear because the highest-impact pieces are often the least frequently worn. A wedding guest outfit, black-tie gown, sherwani, or party saree can be loved intensely for one night and then sit untouched for years.\n\nA rental marketplace only works when garments are cared for well enough to keep circulating. Cleaning, repair, quality control, durable materials, and easy return loops all matter.',
+    tag: 'Sustainability',
+    image: 'https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=1200&auto=format&fit=crop',
+    readTime: '6 min read',
+    sourceName: 'FLOSET Editorial',
+    sourceUrl: '',
+    publishedAt: '2026-08-20T00:00:00.000Z',
+    featured: true,
+  },
+  {
+    _id: 'demo-journal-003',
+    title: 'Decoding Black-Tie and Royal Groom Attire',
+    slug: 'black-tie-royal-groom-attire',
+    summary: 'A guide to choosing between tuxedos, bandhgalas, sherwanis, and formal accessories.',
+    content:
+      'Black-tie dressing is built on restraint: sharp tailoring, formal fabric, controlled shine, and proportion. A tuxedo works best when the jacket, trouser break, shirt collar, bow tie, and shoes feel precise rather than loud.\n\nIndian groom and guest dressing uses a different formal language. Sherwanis, bandhgalas, embroidered jackets, and ceremonial stoles can carry more surface detail, but fit is still everything.\n\nWhen choosing between the two, match the dress code and the setting. A hotel ballroom reception may favor a tuxedo or velvet dinner jacket, while a wedding ceremony can support richer embroidery and brocade.',
+    tag: "Men's Occasion",
+    image: 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1200&auto=format&fit=crop',
+    readTime: '5 min read',
+    sourceName: 'FLOSET Editorial',
+    sourceUrl: '',
+    publishedAt: '2026-08-02T00:00:00.000Z',
+    featured: false,
+  },
+];
