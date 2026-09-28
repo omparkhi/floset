@@ -36,9 +36,9 @@ export default function Footer({ onNavigate, onOpenListOutfit }) {
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm mb-1">Hospital-Grade Clean</h4>
+              <h4 className="font-bold text-white text-sm mb-1">Freshly Cleaned</h4>
               <p className="text-white/60 leading-relaxed font-light">
-                UV sanitization, organic eco dry-cleaning, and crisp steam pressing before every rental.
+                Every outfit is cleaned and checked before each rental, so it arrives fresh and ready to wear.
               </p>
             </div>
           </div>
