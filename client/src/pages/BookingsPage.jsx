@@ -1,27 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Package, Truck, Sparkles, CheckCircle2, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Calendar, Truck, CheckCircle2, Clock, ArrowRight } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function BookingsPage({ onNavigate, onOpenAuth }) {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchBookings = async () => {
       if (!user) {
         setBookings([]);
+        setOrders([]);
         setLoading(false);
         return;
       }
       setLoading(true);
       try {
-        const res = await api.bookings.getMyBookings();
-        setBookings(res.bookings || []);
+        const [bookingRes, orderRes] = await Promise.all([
+          api.bookings.getMyBookings(),
+          api.orders.getMyOrders()
+        ]);
+        setBookings(bookingRes.bookings || []);
+        setOrders(orderRes.orders || []);
       } catch (err) {
         console.error('Failed to load bookings:', err);
         setBookings([]);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
@@ -38,7 +45,7 @@ export default function BookingsPage({ onNavigate, onOpenAuth }) {
             Account &gt; Orders
           </span>
           <h1 className="font-display text-3xl font-extrabold text-noir tracking-tight">
-            My Rental Bookings
+            My Rental Orders
           </h1>
         </div>
         <button
@@ -64,7 +71,7 @@ export default function BookingsPage({ onNavigate, onOpenAuth }) {
         </div>
       ) : loading ? (
         <div className="py-20 text-center text-xs text-ash">Loading your rental orders...</div>
-      ) : bookings.length === 0 ? (
+      ) : bookings.length === 0 && orders.length === 0 ? (
         <div className="bg-white rounded-3xl p-16 text-center space-y-3 border border-black/5 shadow-sm">
           <p className="font-display text-lg font-bold text-noir">No rental bookings yet</p>
           <p className="text-xs text-ash max-w-sm mx-auto">
@@ -78,7 +85,85 @@ export default function BookingsPage({ onNavigate, onOpenAuth }) {
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
+          {orders.length > 0 && (
+            <section className="space-y-4">
+              <h2 className="font-display text-lg font-bold text-noir">Rental Requests</h2>
+              {orders.map((order) => (
+                <article key={order._id} className="bg-white rounded-3xl border border-black/10 overflow-hidden shadow-sm p-5 sm:p-7 space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-black/5">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-display text-base font-extrabold text-noir">Order #{order.orderId}</h3>
+                        <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider ${order.status === 'REJECTED' ? 'bg-red-100 text-red-800' : order.status === 'PENDING' ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {order.status.replaceAll('_', ' ')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-ash mt-1">Request sent {new Date(order.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div className="sm:text-right">
+                      <span className="text-[10px] text-ash uppercase font-bold block">Rental total</span>
+                      <span className="font-display text-lg font-black text-noir">₹{order.totalAmount?.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {order.items.map((item) => {
+                      const booking = item.type === 'BOOKING';
+                      const steps = booking
+                        ? ['PENDING', 'CONFIRMED', 'SCHEDULED', 'PREPARING', 'READY', 'DELIVERED', 'RETURNED', 'COMPLETED']
+                        : ['PENDING', 'CONFIRMED', 'PREPARING', 'READY', 'DELIVERED', 'RETURNED', 'COMPLETED'];
+                      const completedStatuses = new Set((item.statusHistory || []).map((entry) => entry.status));
+                      const labels = {
+                        PENDING: 'Request Received',
+                        CONFIRMED: 'Approved',
+                        SCHEDULED: 'Scheduled',
+                        PREPARING: 'Preparing',
+                        READY: 'Ready',
+                        DELIVERED: 'Delivered',
+                        RETURNED: 'Returned',
+                        COMPLETED: 'Completed'
+                      };
+                      return (
+                        <div key={item._id} className="grid grid-cols-1 sm:grid-cols-[72px_1fr] gap-4 p-4 bg-cream/30 rounded-2xl border border-black/5">
+                          <img src={item.image} alt={item.productName} className="w-[72px] h-20 object-cover rounded-xl bg-sand" />
+                          <div className="min-w-0 space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                              <div>
+                                <h4 className="font-display text-sm font-bold text-noir">{item.productName}</h4>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-ash">{booking ? 'Booking' : 'Order'} · {new Date(item.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} - {new Date(item.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                              </div>
+                              <span className="text-sm font-bold text-noir">₹{(item.rentalPrice * item.quantity).toLocaleString('en-IN')}</span>
+                            </div>
+                            {item.status === 'REJECTED' ? (
+                              <p className="text-xs font-semibold text-red-700">This item could not be confirmed for your requested dates.</p>
+                            ) : (
+                              <div className="flex gap-2 overflow-x-auto pb-1">
+                                {steps.map((status) => {
+                                  const done = completedStatuses.has(status);
+                                  const active = item.status === status;
+                                  return (
+                                    <div key={status} className={`min-w-[76px] flex-1 text-center p-2 rounded-xl border ${done ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : active ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-white border-black/5 text-ash/60'}`}>
+                                      <div className="flex justify-center mb-1">
+                                        {done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-700" /> : <Clock className="w-3.5 h-3.5" />}
+                                      </div>
+                                      <span className="text-[9px] font-bold leading-tight">{labels[status]}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </article>
+              ))}
+            </section>
+          )}
+
+          {bookings.length > 0 && <div className="space-y-6">
           {bookings.map((booking) => (
             <div
               key={booking._id}
@@ -182,6 +267,7 @@ export default function BookingsPage({ onNavigate, onOpenAuth }) {
               </div>
             </div>
           ))}
+          </div>}
         </div>
       )}
     </div>

@@ -62,9 +62,14 @@ export default function ProductDetailPage({ product, onSelectProduct, onNavigate
   const currentPrice = getPriceForDuration(selectedDuration);
   const isLiked = isInWishlist(product._id || product.productId);
 
-  const handleRentNow = () => {
+  const handleAddRental = (type) => {
     if (!user) {
       if (onOpenAuth) onOpenAuth();
+      return;
+    }
+
+    if (!dateSelection.startDate || !dateSelection.endDate) {
+      alert('Please select your rental dates first.');
       return;
     }
 
@@ -79,7 +84,9 @@ export default function ProductDetailPage({ product, onSelectProduct, onNavigate
       startDate: dateSelection.startDate,
       endDate: dateSelection.endDate,
       rentalPrice: currentPrice,
-      securityDeposit: product.securityDeposit || 1000
+      securityDeposit: product.securityDeposit || 1000,
+      type,
+      quantity: 1
     });
   };
 
@@ -383,21 +390,24 @@ export default function ProductDetailPage({ product, onSelectProduct, onNavigate
               onDatesChange={(dates) => setDateSelection(dates)}
             />
 
-            {/* Rent & Wishlist CTAs */}
+            {/* Rental Request Actions */}
             <div className="space-y-3 pt-2">
               <button
                 type="button"
-                onClick={handleRentNow}
-                disabled={user && !dateSelection.isAvailable}
+                onClick={() => handleAddRental('ORDER')}
+                disabled={user && (!dateSelection.isAvailable || !dateSelection.startDate)}
                 className="w-full py-4 bg-noir hover:bg-obsidian text-white text-xs font-bold uppercase tracking-wider rounded-2xl transition-all shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <span>
-                  {!user
-                    ? 'Sign In to Rent Outfit'
-                    : dateSelection.isAvailable
-                      ? 'Book Outfit Rental'
-                      : 'Unavailable for Selected Dates'}
-                </span>
+                <span>{!user ? 'Sign In to Rent Outfit' : 'Order Now'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleAddRental('BOOKING')}
+                disabled={user && (!dateSelection.isAvailable || !dateSelection.startDate)}
+                className="w-full py-3.5 border border-black/15 hover:bg-cream text-noir text-xs font-bold uppercase tracking-wider rounded-2xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Book for Later
               </button>
 
               <button

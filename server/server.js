@@ -23,10 +23,7 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (
-        allowedOrigins.includes(origin) ||
-        origin.endsWith(".vercel.app")
-      ) {
+      if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
         return callback(null, true);
       }
       return callback(null, true);
@@ -36,13 +33,15 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Routes
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/products", require("./routes/productRoutes"));
+app.use("/api/cart", require("./routes/cartRoutes"));
 app.use("/api/bookings", require("./routes/bookingRoutes"));
+app.use("/api/orders", require("./routes/orderRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/contact", require("./routes/contactRoutes"));
 app.use("/api/payments", require("./routes/paymentRoutes"));

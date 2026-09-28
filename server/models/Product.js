@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const productSchema = new mongoose.Schema(
   {
@@ -6,173 +6,178 @@ const productSchema = new mongoose.Schema(
       type: String,
       unique: true,
       required: true,
-      index: true
+      index: true,
     },
     name: {
       type: String,
-      required: [true, 'Please provide outfit name'],
-      trim: true
+      required: [true, "Please provide outfit name"],
+      trim: true,
     },
     description: {
       type: String,
-      required: [true, 'Please provide description']
+      required: [true, "Please provide description"],
     },
     category: {
       type: String,
       required: true,
       enum: [
-        'Dresses',
-        'Gowns',
-        'Sarees',
-        'Lehengas',
-        'Indo-Western',
-        'Sherwanis',
-        'Kurta Sets',
-        'Suits',
-        'Blazers'
+        "Dresses",
+        "Gowns",
+        "Sarees",
+        "Lehengas",
+        "Indo-Western",
+        "Sherwanis",
+        "Kurta Sets",
+        "Suits",
+        "Blazers",
       ],
-      index: true
+      index: true,
     },
     subcategory: {
       type: String,
       trim: true,
-      default: '',
-      index: true
+      default: "",
+      index: true,
     },
     gender: {
       type: String,
       required: true,
-      enum: ['Women', 'Men', 'Unisex'],
-      index: true
+      enum: ["Women", "Men", "Unisex"],
+      index: true,
     },
     occasions: {
       type: [String],
       enum: [
-        'Wedding',
-        'Reception',
-        'Party',
-        'Birthday',
-        'Date',
-        'Photoshoot',
-        'College Event'
+        "Wedding",
+        "Reception",
+        "Party",
+        "Birthday",
+        "Date",
+        "Photoshoot",
+        "College Event",
       ],
-      default: ['Party']
+      default: ["Party"],
     },
     images: {
       type: [String],
-      validate: [val => val.length > 0, 'Must have at least one image']
+      validate: [(val) => val.length > 0, "Must have at least one image"],
     },
     size: {
       type: String,
       required: true,
-      enum: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'Free Size']
+      enum: ["XS", "S", "M", "L", "XL", "XXL", "Free Size"],
     },
     availableSizes: {
       type: [String],
-      default: []
+      default: [],
     },
     measurements: {
-      bustChest: { type: String, default: '' },
-      waist: { type: String, default: '' },
-      hips: { type: String, default: '' },
-      length: { type: String, default: '' },
-      fitNotes: { type: String, default: '' }
+      bustChest: { type: String, default: "" },
+      waist: { type: String, default: "" },
+      hips: { type: String, default: "" },
+      length: { type: String, default: "" },
+      fitNotes: { type: String, default: "" },
     },
     colour: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
     condition: {
       type: String,
-      enum: ['Brand New with Tags', 'Like New', 'Gently Used'],
-      default: 'Like New'
+      enum: ["Brand New with Tags", "Like New", "Gently Used"],
+      default: "Like New",
     },
     includedAccessories: {
       type: [String],
-      default: []
+      default: [],
     },
     cleaningInfo: {
       type: String,
-      default: 'Professionally dry-cleaned, UV-sanitized, and steam-pressed before every rental.'
+      default:
+        "Professionally dry-cleaned, UV-sanitized, and steam-pressed before every rental.",
     },
     brand: {
       type: String,
-      default: 'FLOSET Curation'
+      default: "FLOSET Curation",
     },
     pricing: {
       duration3h: { type: Number, required: true },
       duration1d: { type: Number, required: true },
       duration3d: { type: Number, required: true },
       duration5d: { type: Number, required: true },
-      duration7d: { type: Number, required: true }
+      duration7d: { type: Number, required: true },
     },
     securityDeposit: {
       type: Number,
       required: true,
-      default: 1000
+      default: 1000,
     },
     isAvailable: {
       type: Boolean,
-      default: true
+      default: true,
+    },
+    availabilityRevision: {
+      type: Number,
+      default: 0,
     },
     status: {
       type: String,
-      enum: ['APPROVED', 'PENDING_REVIEW', 'REJECTED', 'INACTIVE'],
-      default: 'APPROVED',
-      index: true
+      enum: ["APPROVED", "PENDING_REVIEW", "REJECTED", "INACTIVE"],
+      default: "APPROVED",
+      index: true,
     },
     rating: {
       type: Number,
-      default: 4.9
+      default: 4.9,
     },
     reviewsCount: {
       type: Number,
-      default: 12
+      default: 12,
     },
     isFeatured: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isBestSeller: {
       type: Boolean,
-      default: false
+      default: false,
     },
     badge: {
       type: String,
-      default: 'New'
+      default: "New",
     },
 
     // INTERNAL MARKETPLACE FIELDS (STRICTLY ADMIN/HOST ONLY)
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      index: true
+      ref: "User",
+      index: true,
     },
     sourceType: {
       type: String,
-      enum: ['FLOSET', 'INDIVIDUAL', 'STORE', 'DESIGNER'],
-      default: 'FLOSET'
+      enum: ["FLOSET", "INDIVIDUAL", "STORE", "DESIGNER"],
+      default: "FLOSET",
     },
     /** Host-declared blackout / unavailable windows (admin may override) */
     hostAvailabilityBlocks: [
       {
         startDate: Date,
         endDate: Date,
-        note: { type: String, default: '' }
-      }
+        note: { type: String, default: "" },
+      },
     ],
     ownerExpectedEarning: {
       type: Number,
-      default: 0
+      default: 0,
     },
     ownerRentalDurationPreference: {
       type: String,
-      default: '3_days'
+      default: "3_days",
     },
     additionalDayCharge: {
       type: Number,
-      default: 200
+      default: 200,
     },
     ownerPickupAddress: {
       street: String,
@@ -180,14 +185,14 @@ const productSchema = new mongoose.Schema(
       state: String,
       pincode: String,
       contactPhone: String,
-      contactName: String
+      contactName: String,
     },
     adminReviewNotes: {
       type: String,
-      default: ''
-    }
+      default: "",
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Method to safely sanitize product for customer responses
@@ -203,4 +208,4 @@ productSchema.methods.toCustomerJSON = function () {
   return obj;
 };
 
-module.exports = mongoose.model('Product', productSchema);
+module.exports = mongoose.model("Product", productSchema);

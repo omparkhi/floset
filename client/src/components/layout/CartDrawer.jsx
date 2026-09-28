@@ -1,30 +1,21 @@
 import React, { useState } from 'react';
-import { X, Calendar, ShieldCheck, Truck, Sparkles, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { X, Calendar, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { FLOSET_WHATSAPP_NUMBER } from '../../config';
 
 export default function CartDrawer({ onNavigate, onOpenAuth }) {
-  const { cartItems, isCartOpen, closeCart, removeFromCart, clearCart, totalRentalPrice, totalDeposit, grandTotal } = useCart();
-  const { user, login } = useAuth();
+  const { cartItems, isCartOpen, closeCart, removeFromCart, clearCart, totalRentalPrice } = useCart();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successBooking, setSuccessBooking] = useState(null);
-
-  // Address state
-  const [address, setAddress] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '',
-    street: user?.savedAddresses?.[0]?.street || 'A-402, Oberoi Sky City, Borivali East',
-    city: user?.savedAddresses?.[0]?.city || 'Mumbai',
-    state: 'Maharashtra',
-    pincode: '400066'
-  });
+  const [submittedOrder, setSubmittedOrder] = useState(null);
+  const [customer, setCustomer] = useState({ name: user?.name || '', phone: user?.phone || '' });
 
   if (!isCartOpen) return null;
 
-  const handleBooking = async () => {
+  const handleSubmitRequest = async () => {
     setError('');
 
     if (!user) {
@@ -34,34 +25,65 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
     }
 
     if (!cartItems.length) return;
-    const item = cartItems[0];
+    if (!customer.name.trim() || !customer.phone.trim()) {
+      setError('Please provide your name and phone number.');
+      return;
+    }
+    if (cartItems.some((item) => !item.startDate || !item.endDate || new Date(item.endDate) < new Date(item.startDate))) {
+      setError('Every rental must have valid start and return dates.');
+      return;
+    }
 
     setLoading(true);
+    let whatsappWindow;
     try {
-      const res = await api.bookings.create({
-        productId: item.product._id || item.product.productId,
-        rentalDuration: item.duration,
-        startDate: item.startDate,
-        endDate: item.endDate,
-        deliveryAddress: {
-          name: address.name || user.name,
-          phone: address.phone || user.phone || '+91 91234 56789',
-          street: address.street,
-          city: address.city,
-          state: address.state,
-          pincode: address.pincode
-        }
+      whatsappWindow = window.open('', '_blank');
+      const res = await api.orders.create({
+        customerName: customer.name.trim(),
+        customerPhone: customer.phone.trim(),
+        items: cartItems.map((item) => ({
+          productId: item.product._id || item.product.productId,
+          productName: item.product.name,
+          type: item.type === 'BOOKING' ? 'BOOKING' : 'ORDER',
+          rentalDuration: item.duration,
+          startDate: item.startDate,
+          endDate: item.endDate,
+          quantity: item.quantity || 1
+        }))
       });
 
-      setSuccessBooking(res.booking);
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-
+      const order = res.order;
+      setSubmittedOrder(order);
+      const formatDate = (date) => new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+      const itemLines = order.items.map((item, index) => [
+        `${index + 1}. ${item.productName}${item.quantity > 1 ? ` x${item.quantity}` : ''}`,
+        `Type: ${item.type === 'BOOKING' ? 'Booking' : 'Order'}`,
+        `Rental Date: ${formatDate(item.startDate)}`,
+        `Return Date: ${formatDate(item.endDate)}`,
+        `Rental: ₹${(item.rentalPrice * item.quantity).toLocaleString('en-IN')}`
+      ].join('\n')).join('\n\n');
+      const message = [
+        'Hello FLOSET,',
+        '',
+        'I want to place a rental request.',
+        '',
+        `Order ID: ${order.orderId}`,
+        '',
+        itemLines,
+        '',
+        `Total: ₹${order.totalAmount.toLocaleString('en-IN')}`,
+        '',
+        `Name: ${order.customerName}`,
+        `Phone: ${order.customerPhone}`,
+        '',
+        'Please verify availability and confirm my request.'
+      ].join('\n');
+      const whatsappUrl = `https://wa.me/${FLOSET_WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+      if (whatsappWindow) whatsappWindow.location.href = whatsappUrl;
+      else window.location.href = whatsappUrl;
       clearCart();
     } catch (err) {
+      if (whatsappWindow) whatsappWindow.close();
       setError(err.message || 'Failed to place booking');
     } finally {
       setLoading(false);
@@ -84,7 +106,7 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                 Your Rental Bag
               </span>
               <span className="text-xs font-bold text-ash">
-                ({cartItems.length} {cartItems.length === 1 ? 'outfit' : 'outfits'})
+                ({cartItems.length} {cartItems.length === 1 ? 'item' : 'items'})
               </span>
             </div>
             <button
@@ -97,34 +119,33 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
 
           {/* Drawer Body */}
           <div className="p-6 flex-grow space-y-6">
-            {successBooking ? (
+            {submittedOrder ? (
               <div className="text-center py-10 space-y-4">
                 <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
                 <h3 className="font-display text-xl font-bold text-noir">
-                  Rental Booking Confirmed!
+                  Request Received
                 </h3>
                 <p className="text-xs text-ash leading-relaxed max-w-xs mx-auto">
-                  Booking ID: <strong className="text-noir">{successBooking.bookingId}</strong>.
-                  Our concierge team has initiated dry-cleaning & sanitization for doorstep delivery.
+                  Request ID: <strong className="text-noir">{submittedOrder.orderId}</strong>. FLOSET will verify availability and confirm your request. It is not confirmed yet.
                 </p>
 
                 <div className="pt-4 flex flex-col gap-2">
                   <button
                     onClick={() => {
                       closeCart();
-                      setSuccessBooking(null);
+                      setSubmittedOrder(null);
                       onNavigate('bookings');
                     }}
                     className="w-full py-3 bg-noir text-white text-xs font-bold rounded-xl hover:bg-obsidian transition-colors shadow-sm"
                   >
-                    Track Live Booking Status
+                    View My Rental Requests
                   </button>
                   <button
                     onClick={() => {
                       closeCart();
-                      setSuccessBooking(null);
+                      setSubmittedOrder(null);
                       onNavigate('shop');
                     }}
                     className="w-full py-2.5 border border-black/15 text-noir text-xs font-semibold rounded-xl hover:bg-cream transition-colors"
@@ -154,11 +175,11 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                 {/* Outfit Summary Card */}
                 {cartItems.map((item, idx) => (
                   <div
-                    key={idx}
+                    key={`${item.product._id || item.product.productId}-${item.type}-${item.startDate}-${idx}`}
                     className="p-4 rounded-2xl bg-cream/50 border border-black/10 flex gap-4 relative"
                   >
                     <img
-                      src={item.product.images?.[0]}
+                      src={item.product.images?.[0] || item.product.image}
                       alt={item.product.name}
                       className="w-20 h-24 object-cover rounded-xl bg-sand flex-shrink-0"
                     />
@@ -170,7 +191,7 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                             {item.product.category} • Size {item.product.size}
                           </span>
                           <button
-                            onClick={removeFromCart}
+                            onClick={() => removeFromCart(idx)}
                             className="text-noir/40 hover:text-red-500 p-0.5 transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -184,7 +205,7 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                       <div className="text-[11px] text-ash/90 space-y-0.5 mt-2 bg-white/70 p-2 rounded-lg border border-black/5">
                         <div className="flex items-center gap-1 font-semibold text-noir">
                           <Calendar className="w-3 h-3 text-noir/70" />
-                          <span>Duration: {item.duration.replace('_', ' ')}</span>
+                          <span>{item.type === 'BOOKING' ? 'Booking' : 'Order'} · {item.duration.replaceAll('_', ' ')}</span>
                         </div>
                         <div className="text-[10px] text-ash">
                           {item.startDate} to {item.endDate}
@@ -192,49 +213,30 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                       </div>
 
                       <div className="flex items-baseline justify-between mt-2 pt-1 border-t border-black/5">
-                        <span className="text-xs text-ash">Rental Fee:</span>
+                        <span className="text-xs text-ash">Rental Fee {item.quantity > 1 ? `(x${item.quantity})` : ''}:</span>
                         <span className="text-xs font-bold text-noir">
-                          ₹{item.rentalPrice?.toLocaleString()}
+                          ₹{((item.rentalPrice || 0) * (item.quantity || 1)).toLocaleString()}
                         </span>
                       </div>
                     </div>
                   </div>
                 ))}
 
-                {/* Delivery Address Form */}
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-noir uppercase tracking-wider flex items-center gap-1.5">
-                      <Truck className="w-4 h-4 text-emerald-700" /> Doorstep Delivery Details
-                    </span>
-                    <span className="text-[10px] text-ash font-medium">Mumbai Metro</span>
-                  </div>
-
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Delivery Street Address"
-                      value={address.street}
-                      onChange={(e) => setAddress({ ...address, street: e.target.value })}
-                      className="w-full px-3 py-2 text-xs bg-cream/40 border border-black/10 rounded-xl text-noir focus:outline-none focus:border-noir"
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="City"
-                        value={address.city}
-                        onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                        className="w-full px-3 py-2 text-xs bg-cream/40 border border-black/10 rounded-xl text-noir focus:outline-none focus:border-noir"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Pincode"
-                        value={address.pincode}
-                        onChange={(e) => setAddress({ ...address, pincode: e.target.value })}
-                        className="w-full px-3 py-2 text-xs bg-cream/40 border border-black/10 rounded-xl text-noir focus:outline-none focus:border-noir"
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-2 pt-2">
+                  <input
+                    type="text"
+                    placeholder="Customer name"
+                    value={customer.name}
+                    onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-cream/40 border border-black/10 rounded-xl text-noir focus:outline-none focus:border-noir"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone number"
+                    value={customer.phone}
+                    onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
+                    className="w-full px-3 py-2 text-xs bg-cream/40 border border-black/10 rounded-xl text-noir focus:outline-none focus:border-noir"
+                  />
                 </div>
 
                 {/* Price Breakdown */}
@@ -243,29 +245,10 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                     <span>Outfit Rental Charge:</span>
                     <span className="font-semibold text-noir">₹{totalRentalPrice.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-ash">
-                    <span className="flex items-center gap-1">
-                      Refundable Security Deposit:
-                      <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                    </span>
-                    <span className="font-semibold text-noir">₹{totalDeposit.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-ash">
-                    <span>Hygiene, Sanitization & Steam:</span>
-                    <span className="font-semibold text-emerald-700">FREE (Included)</span>
-                  </div>
-                  <div className="flex justify-between text-ash">
-                    <span>Doorstep Delivery & Return Pickup:</span>
-                    <span className="font-semibold text-emerald-700">FREE (Included)</span>
-                  </div>
-
                   <div className="flex justify-between text-sm font-bold text-noir pt-3 border-t border-black/10">
-                    <span>Total Due Now:</span>
-                    <span className="font-display text-base">₹{grandTotal.toLocaleString()}</span>
+                    <span>Rental Total:</span>
+                    <span className="font-display text-base">₹{totalRentalPrice.toLocaleString()}</span>
                   </div>
-                  <p className="text-[10px] text-ash/80">
-                    *₹{totalDeposit.toLocaleString()} security deposit is fully refunded within 24 hours of return inspection.
-                  </p>
                 </div>
 
                 {error && (
@@ -279,29 +262,32 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
           </div>
 
           {/* Drawer Footer CTA */}
-          {cartItems.length > 0 && !successBooking && (
+          {cartItems.length > 0 && !submittedOrder && (
             <div className="p-6 border-t border-black/10 bg-sand/30">
               {!user && (
                 <div className="mb-3 p-2.5 bg-amber-50 border border-amber-200/80 rounded-xl text-center text-xs text-amber-900 font-medium">
-                  Sign in required to confirm and book rentals.
+                  Sign in to send your rental request.
                 </div>
               )}
+              <p className="mb-3 text-[11px] leading-relaxed text-ash">
+                Your order will be confirmed on WhatsApp. After you submit your request, FLOSET will verify availability and confirm your order.
+              </p>
               <button
                 type="button"
-                onClick={handleBooking}
+                onClick={handleSubmitRequest}
                 disabled={loading}
                 className="w-full py-3.5 bg-noir hover:bg-obsidian text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.99]"
               >
                 {loading ? (
-                  <span>Securing your outfit...</span>
+                  <span>Submitting request...</span>
                 ) : !user ? (
                   <>
-                    <span>Sign In to Book Rental</span>
+                    <span>Sign In to Send Request</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 ) : (
                   <>
-                    <span>Confirm & Book Rental</span>
+                    <span>Confirm & Send on WhatsApp</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
