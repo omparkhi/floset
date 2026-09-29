@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Package, Truck, Sparkles, CheckCircle2, Clock, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Calendar, Package, Truck, Sparkles, CheckCircle2, Clock, ShieldCheck, ArrowRight, MessageCircle } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { buildWhatsAppOrderConfirmationUrl } from '../config';
 
 export default function BookingsPage({ onNavigate, onOpenAuth }) {
   const { user } = useAuth();
@@ -43,7 +44,7 @@ export default function BookingsPage({ onNavigate, onOpenAuth }) {
         </div>
         <button
           onClick={() => onNavigate('shop')}
-          className="text-xs font-bold text-noir hover:underline flex items-center gap-1"
+          className="text-xs font-bold text-noir hover:underline flex items-center gap-1 cursor-pointer"
         >
           <span>Rent Another Outfit</span>
           <ArrowRight className="w-3.5 h-3.5" />
@@ -57,7 +58,7 @@ export default function BookingsPage({ onNavigate, onOpenAuth }) {
           <button
             type="button"
             onClick={onOpenAuth}
-            className="mt-4 px-6 py-2.5 bg-noir text-white text-xs font-bold rounded-full hover:bg-obsidian transition-colors"
+            className="mt-4 px-6 py-2.5 bg-noir text-white text-xs font-bold rounded-full hover:bg-obsidian transition-colors cursor-pointer"
           >
             Sign in
           </button>
@@ -72,7 +73,7 @@ export default function BookingsPage({ onNavigate, onOpenAuth }) {
           </p>
           <button
             onClick={() => onNavigate('shop')}
-            className="mt-4 px-6 py-2.5 bg-noir text-white text-xs font-bold rounded-full hover:bg-obsidian transition-colors"
+            className="mt-4 px-6 py-2.5 bg-noir text-white text-xs font-bold rounded-full hover:bg-obsidian transition-colors cursor-pointer"
           >
             Explore Outfits
           </button>
@@ -152,10 +153,22 @@ export default function BookingsPage({ onNavigate, onOpenAuth }) {
               </div>
 
               {/* Timeline Tracker */}
-              <div className="pt-4 border-t border-black/5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-ash block mb-3">
-                  FloSet Concierge Workflow
-                </span>
+              <div className="pt-4 border-t border-black/5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-ash block">
+                    FloSet Concierge Workflow
+                  </span>
+                  <a
+                    href={buildWhatsAppOrderConfirmationUrl(booking)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-xl text-[11px] font-bold transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Chat with Concierge about this Order</span>
+                  </a>
+                </div>
+
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-[10px] font-bold">
                   {[
                     { label: 'Confirmed', done: true },

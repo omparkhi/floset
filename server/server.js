@@ -70,8 +70,8 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`FLOSET API Server running on port ${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`FLOSET API Server running on http://localhost:${PORT}`);
 });
 
 module.exports = app;

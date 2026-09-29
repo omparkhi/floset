@@ -15,18 +15,25 @@ export const WishlistProvider = ({ children }) => {
   });
 
   useEffect(() => {
+    if (user) {
+      try {
+        localStorage.setItem('floset_wishlist', JSON.stringify(wishlist));
+      } catch {
+        // ignore
+      }
+    }
+  }, [wishlist, user]);
+
+  useEffect(() => {
     if (!user) {
-      // If user is logged out, ensure in-memory wishlist is cleared
-      setWishlist([]);
+      setWishlist((prev) => (prev.length > 0 ? [] : prev));
       try {
         localStorage.removeItem('floset_wishlist');
       } catch {
         // ignore
       }
-    } else {
-      localStorage.setItem('floset_wishlist', JSON.stringify(wishlist));
     }
-  }, [wishlist, user]);
+  }, [user]);
 
   const isInWishlist = (id) => {
     if (!id || !user) return false;

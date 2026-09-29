@@ -28,7 +28,13 @@ import {
   Layers,
   ShieldCheck,
   AlertCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ExternalLink,
+  MessageCircle,
+  Check,
+  FileText,
+  ClipboardCheck,
+  Zap
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -208,23 +214,138 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
     }
   };
 
-  const workflowOrder = [
-    'BOOKING_CONFIRMED',
-    'SECURED_OUTFIT',
-    'PICKUP_FROM_HOST',
-    'PHYSICAL_INSPECTION',
-    'CLEANING_SANITIZATION',
-    'STEAM_IRON',
-    'QUALITY_CHECKED',
-    'PACKAGED',
-    'OUT_FOR_DELIVERY',
-    'DELIVERED',
-    'IN_USE',
-    'RETURN_PICKUP_SCHEDULED',
-    'RETURN_INSPECTED',
-    'DEPOSIT_REFUNDED',
-    'COMPLETED'
+  // Dedicated Full-Page Workflow State
+  const [selectedBookingWorkflow, setSelectedBookingWorkflow] = useState(null);
+  const [workflowCustomNote, setWorkflowCustomNote] = useState('');
+  const [workflowActionLoading, setWorkflowActionLoading] = useState(false);
+  const [penaltyAmount, setPenaltyAmount] = useState('');
+  const [penaltyReason, setPenaltyReason] = useState('');
+  const [showPenaltyModal, setShowPenaltyModal] = useState(false);
+
+  const WORKFLOW_STAGES = [
+    {
+      id: 'BOOKING_CONFIRMED',
+      label: 'Order Confirmed',
+      phase: 'Inbound Sourcing',
+      desc: 'Customer payment verified and rental booking created.',
+      icon: CheckCircle2,
+      badgeColor: 'bg-blue-50 text-blue-800 border-blue-200'
+    },
+    {
+      id: 'SECURED_OUTFIT',
+      label: 'Outfit Secured',
+      phase: 'Inbound Sourcing',
+      desc: 'Outfit reserved from vault or boutique studio partner notified.',
+      icon: Package,
+      badgeColor: 'bg-indigo-50 text-indigo-800 border-indigo-200'
+    },
+    {
+      id: 'PICKUP_FROM_HOST',
+      label: 'Boutique Collection',
+      phase: 'Inbound Sourcing',
+      desc: 'Concierge rider collected piece from partner boutique.',
+      icon: Truck,
+      badgeColor: 'bg-violet-50 text-violet-800 border-violet-200'
+    },
+    {
+      id: 'PHYSICAL_INSPECTION',
+      label: 'Inbound Inspection',
+      phase: 'Inbound Sourcing',
+      desc: 'Physical check for fabric integrity, beadwork, embroidery and seams.',
+      icon: ClipboardCheck,
+      badgeColor: 'bg-purple-50 text-purple-800 border-purple-200'
+    },
+    {
+      id: 'CLEANING_SANITIZATION',
+      label: 'Dry Clean & UV Sanitization',
+      phase: 'Hygiene & Prep',
+      desc: '5-step eco solvent dry cleaning and UV-C hospital-grade disinfection.',
+      icon: Sparkles,
+      badgeColor: 'bg-teal-50 text-teal-800 border-teal-200'
+    },
+    {
+      id: 'STEAM_IRON',
+      label: 'Steam Pressing',
+      phase: 'Hygiene & Prep',
+      desc: 'Vertical steam pressing for flawless silhouette and drape.',
+      icon: ShieldCheck,
+      badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    },
+    {
+      id: 'QUALITY_CHECKED',
+      label: 'Senior Stylist QC Passed',
+      phase: 'Hygiene & Prep',
+      desc: 'Final senior stylist sign-off and tamper-evident security tag attached.',
+      icon: Check,
+      badgeColor: 'bg-green-50 text-green-800 border-green-200'
+    },
+    {
+      id: 'PACKAGED',
+      label: 'Garment Bag Sealed',
+      phase: 'Hygiene & Prep',
+      desc: 'Vacuum sealed in breathable luxury FLOSET garment bag with matching hanger.',
+      icon: Package,
+      badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    },
+    {
+      id: 'OUT_FOR_DELIVERY',
+      label: 'Out For Delivery',
+      phase: 'Outbound Logistics',
+      desc: 'Dedicated FLOSET courier in transit to customer doorstep.',
+      icon: Truck,
+      badgeColor: 'bg-amber-50 text-amber-800 border-amber-200'
+    },
+    {
+      id: 'DELIVERED',
+      label: 'Delivered to Customer',
+      phase: 'Outbound Logistics',
+      desc: 'Doorstep handoff completed and OTP/signature verified.',
+      icon: CheckCircle2,
+      badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    },
+    {
+      id: 'IN_USE',
+      label: 'Active Rental / In Use',
+      phase: 'Customer Occasion',
+      desc: 'Customer enjoying the outfit for their special occasion.',
+      icon: Clock,
+      badgeColor: 'bg-blue-50 text-blue-800 border-blue-200'
+    },
+    {
+      id: 'RETURN_PICKUP_SCHEDULED',
+      label: 'Return Pickup In Transit',
+      phase: 'Reverse Logistics',
+      desc: 'Courier collecting garment bag from customer address.',
+      icon: Truck,
+      badgeColor: 'bg-orange-50 text-orange-800 border-orange-200'
+    },
+    {
+      id: 'RETURN_INSPECTED',
+      label: 'Return QC Inspection',
+      phase: 'Reverse Logistics',
+      desc: 'Post-event inspection for stains, tears, zipper checks or damages.',
+      icon: ClipboardCheck,
+      badgeColor: 'bg-purple-50 text-purple-800 border-purple-200'
+    },
+    {
+      id: 'DEPOSIT_REFUNDED',
+      label: 'Security Deposit Settled',
+      phase: 'Settlement',
+      desc: 'Security deposit released back to customer payment method / UPI.',
+      icon: DollarSign,
+      badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200'
+    },
+    {
+      id: 'COMPLETED',
+      label: 'Order Completed',
+      phase: 'Settlement',
+      desc: 'Outfit sanitized, restored to vault / boutique and order archived.',
+      icon: Shield,
+      badgeColor: 'bg-emerald-100 text-emerald-900 border-emerald-300'
+    }
   ];
+
+  const workflowOrder = WORKFLOW_STAGES.map(s => s.id);
 
   const getNextStatus = (currentStatus) => {
     const currentIndex = workflowOrder.indexOf(currentStatus);
@@ -232,22 +353,37 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
     return workflowOrder[currentIndex + 1];
   };
 
-  const handleAdvanceOrderStatus = async (bookingId, currentStatus) => {
+  const handleAdvanceOrderStatus = async (bookingId, currentStatus, customNote, depositStatus) => {
     const nextStatus = getNextStatus(currentStatus);
     if (!nextStatus) {
       alert('Order is already in final completed status.');
       return;
     }
+    await handleUpdateWorkflowStatus(bookingId, nextStatus, customNote, depositStatus);
+  };
 
+  const handleUpdateWorkflowStatus = async (bookingId, targetStatus, customNote, depositStatus) => {
+    setWorkflowActionLoading(true);
     try {
-      await api.admin.updateBookingStatus(bookingId, {
-        orderStatus: nextStatus,
-        note: `Admin advanced status to ${nextStatus}`,
-        depositStatus: nextStatus === 'DEPOSIT_REFUNDED' || nextStatus === 'COMPLETED' ? 'FULLY_REFUNDED' : undefined
+      const res = await api.admin.updateBookingStatus(bookingId, {
+        orderStatus: targetStatus,
+        note: customNote || `Admin updated status to ${targetStatus}`,
+        depositStatus: depositStatus || (targetStatus === 'DEPOSIT_REFUNDED' || targetStatus === 'COMPLETED' ? 'FULLY_REFUNDED' : undefined)
       });
       await fetchAdminData();
+      if (res.booking) {
+        setSelectedBookingWorkflow(res.booking);
+      } else {
+        const fresh = allBookings.find(b => b._id === bookingId);
+        if (fresh) {
+          setSelectedBookingWorkflow({ ...fresh, orderStatus: targetStatus });
+        }
+      }
+      setWorkflowCustomNote('');
     } catch (err) {
       alert(err.message || 'Status update failed');
+    } finally {
+      setWorkflowActionLoading(false);
     }
   };
 
@@ -329,6 +465,665 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
           </button>
         </div>
       </DashboardShell>
+    );
+  }
+
+  // DEDICATED FULL-PAGE RENTAL WORKFLOW & LIFECYCLE OPERATIONS HUB
+  if (selectedBookingWorkflow) {
+    const booking = selectedBookingWorkflow;
+    const currentIdx = workflowOrder.indexOf(booking.orderStatus);
+    const nextStatus = getNextStatus(booking.orderStatus);
+    const currentStageObj = WORKFLOW_STAGES.find(s => s.id === booking.orderStatus) || WORKFLOW_STAGES[0];
+    const nextStageObj = nextStatus ? WORKFLOW_STAGES.find(s => s.id === nextStatus) : null;
+    const progressPercent = Math.round(((currentIdx + 1) / WORKFLOW_STAGES.length) * 100);
+
+    const customerPhone = booking.customerId?.phone || booking.deliveryAddress?.phone || '';
+    const customerName = booking.customerId?.name || booking.deliveryAddress?.name || 'Customer';
+    const outfitName = booking.productId?.name || 'Rental Outfit';
+    const cleanPhone = customerPhone.replace(/[^0-9]/g, '');
+    const whatsappUrl = `https://wa.me/${cleanPhone.startsWith('91') ? cleanPhone : `91${cleanPhone}`}?text=${encodeURIComponent(`Hello ${customerName}, this is FLOSET Concierge regarding your rental order #${booking.bookingId} (${outfitName}).`)}`;
+
+    const fullAddress = [
+      booking.deliveryAddress?.street,
+      booking.deliveryAddress?.city,
+      booking.deliveryAddress?.state,
+      booking.deliveryAddress?.pincode
+    ].filter(Boolean).join(', ');
+
+    return (
+      <div className="min-h-screen bg-sand/30 text-noir font-sans pb-16">
+        {/* Top Header Command Bar */}
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-black/10 px-4 sm:px-8 py-4 shadow-xs">
+          <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedBookingWorkflow(null)}
+                className="px-3.5 py-2 rounded-xl border border-black/10 hover:bg-neutral-100 text-noir transition-colors flex items-center gap-1.5 text-xs font-bold shadow-2xs cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Orders</span>
+              </button>
+              <div className="h-5 w-px bg-black/10 hidden sm:block" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-black text-noir tracking-tight">
+                    Order #{booking.bookingId}
+                  </span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border uppercase tracking-wider ${currentStageObj.badgeColor || 'bg-emerald-50 text-emerald-800 border-emerald-200'}`}>
+                    {booking.orderStatus.replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-ash mt-0.5">
+                  Placed on {new Date(booking.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })} • Customer: <strong className="text-noir">{customerName}</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Fast Action Buttons in Header */}
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>WhatsApp Customer</span>
+              </a>
+              {customerPhone && (
+                <a
+                  href={`tel:${customerPhone}`}
+                  className="px-3.5 py-2 bg-white hover:bg-cream border border-black/10 text-noir rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs"
+                >
+                  <Phone className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Call</span>
+                </a>
+              )}
+              {nextStatus && (
+                <button
+                  type="button"
+                  disabled={workflowActionLoading}
+                  onClick={() => handleAdvanceOrderStatus(booking._id, booking.orderStatus, workflowCustomNote)}
+                  className="px-4 py-2 bg-noir hover:bg-obsidian text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Advance: {nextStageObj?.label || nextStatus.replace(/_/g, ' ')}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+          {/* Top Quick Status Metric Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div className="p-4 bg-white rounded-2xl border border-black/10 shadow-framer-sm">
+              <span className="text-[10px] font-bold text-ash uppercase tracking-wider block">Lifecycle Progress</span>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="font-display text-2xl font-black text-noir">{progressPercent}%</span>
+                <span className="text-[11px] text-ash font-medium">Stage {currentIdx + 1}/15</span>
+              </div>
+              <span className="text-[10px] text-emerald-700 font-bold block mt-1 truncate">{currentStageObj.phase}</span>
+            </div>
+
+            <div className="p-4 bg-white rounded-2xl border border-black/10 shadow-framer-sm">
+              <span className="text-[10px] font-bold text-ash uppercase tracking-wider block">Rental Window</span>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="font-display text-lg font-black text-noir">{booking.rentalDuration.replace('_', ' ')}</span>
+              </div>
+              <span className="text-[10px] text-ash block mt-1">
+                {new Date(booking.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – {new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+
+            <div className="p-4 bg-white rounded-2xl border border-black/10 shadow-framer-sm">
+              <span className="text-[10px] font-bold text-ash uppercase tracking-wider block">Security Deposit</span>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="font-display text-2xl font-black text-noir">₹{booking.securityDeposit?.toLocaleString()}</span>
+              </div>
+              <span className={`text-[10px] font-bold block mt-1 ${booking.depositStatus === 'FULLY_REFUNDED' ? 'text-emerald-700' : 'text-amber-700'}`}>
+                Status: {booking.depositStatus}
+              </span>
+            </div>
+
+            <div className="p-4 bg-white rounded-2xl border border-black/10 shadow-framer-sm">
+              <span className="text-[10px] font-bold text-ash uppercase tracking-wider block">Total Amount Paid</span>
+              <div className="flex items-baseline gap-1.5 mt-1">
+                <span className="font-display text-2xl font-black text-noir">₹{booking.totalAmount?.toLocaleString()}</span>
+              </div>
+              <span className="text-[10px] text-emerald-800 font-bold block mt-1">
+                Payment: {booking.paymentStatus || 'PAID'}
+              </span>
+            </div>
+          </div>
+
+          {/* Interactive 15-Stage Lifecycle Stepper Deck */}
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-black/10 shadow-framer-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/5 pb-4">
+              <div>
+                <h3 className="font-display text-lg font-bold text-noir">
+                  15-Stage Master Rental Pipeline
+                </h3>
+                <p className="text-xs text-ash">
+                  Interactive stage progression from reservation through 5-step UV sanitization, dispatch, return QC, and deposit settlement.
+                </p>
+              </div>
+              <span className="px-3 py-1 bg-sand/60 text-noir rounded-full text-xs font-bold">
+                Current: <strong className="text-noir">{currentStageObj.label}</strong>
+              </span>
+            </div>
+
+            {/* Stepper Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+              {WORKFLOW_STAGES.map((stage, idx) => {
+                const isPassed = idx < currentIdx;
+                const isCurrent = idx === currentIdx;
+                const isUpcoming = idx > currentIdx;
+                const StageIcon = stage.icon;
+
+                return (
+                  <button
+                    key={stage.id}
+                    type="button"
+                    onClick={() => {
+                      if (isCurrent) return;
+                      if (window.confirm(`Override workflow stage directly to "${stage.label}"?`)) {
+                        handleUpdateWorkflowStatus(booking._id, stage.id, `Admin jumped stage to ${stage.label}`);
+                      }
+                    }}
+                    title={`Click to set stage to ${stage.label}`}
+                    className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between min-h-[125px] relative group cursor-pointer ${
+                      isCurrent
+                        ? 'bg-noir text-white border-noir shadow-lg ring-2 ring-emerald-400/40 scale-[1.02]'
+                        : isPassed
+                        ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950 hover:bg-emerald-100/70'
+                        : 'bg-white hover:bg-cream/60 border-black/10 text-noir/70 opacity-75 hover:opacity-100'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                          isCurrent
+                            ? 'bg-white/20 text-white'
+                            : isPassed
+                            ? 'bg-emerald-200/80 text-emerald-900'
+                            : 'bg-sand text-ash'
+                        }`}>
+                          #{idx + 1}
+                        </span>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          isCurrent
+                            ? 'bg-emerald-400 text-noir'
+                            : isPassed
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-neutral-100 text-ash'
+                        }`}>
+                          {isPassed ? (
+                            <Check className="w-3.5 h-3.5" />
+                          ) : (
+                            <StageIcon className="w-3.5 h-3.5" />
+                          )}
+                        </div>
+                      </div>
+                      <span className={`text-xs font-bold block leading-snug ${isCurrent ? 'text-white' : 'text-noir'}`}>
+                        {stage.label}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-black/5 mt-2">
+                      <span className={`text-[9px] font-semibold block uppercase tracking-wider truncate ${isCurrent ? 'text-neutral-300' : 'text-ash'}`}>
+                        {stage.phase}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Operations Center 2-Column Grid (Left: Actions & Logs, Right: Garment & Customer) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Operational Deck (7 Cols) */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* Card 1: Stage Advancement Engine */}
+              <div className="bg-white p-6 rounded-3xl border border-black/10 shadow-framer-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-amber-500" />
+                    <h4 className="font-display text-base font-bold text-noir">
+                      Stage Action & Progression
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-bold text-ash uppercase">
+                    Stage {currentIdx + 1} of 15
+                  </span>
+                </div>
+
+                {/* Current vs Next */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3.5 rounded-2xl bg-cream/50 border border-black/10 space-y-1">
+                    <span className="text-[10px] font-bold text-ash uppercase">Current Active Stage</span>
+                    <strong className="text-xs text-noir font-extrabold block">{currentStageObj.label}</strong>
+                    <p className="text-[11px] text-ash leading-relaxed">{currentStageObj.desc}</p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-1">
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase">Next Upcoming Stage</span>
+                    <strong className="text-xs text-emerald-950 font-extrabold block">
+                      {nextStageObj ? nextStageObj.label : 'Final Stage (Order Completed)'}
+                    </strong>
+                    <p className="text-[11px] text-emerald-900/80 leading-relaxed">
+                      {nextStageObj ? nextStageObj.desc : 'All lifecycle and security deposit steps concluded.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Note Input */}
+                <div>
+                  <label className="block text-[11px] font-bold text-ash uppercase tracking-wider mb-1.5">
+                    Internal Note / Dispatch Observation (Optional)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="E.g. Outfit sanitized, garment bag sealed with seal #4820, handed to courier..."
+                    value={workflowCustomNote}
+                    onChange={(e) => setWorkflowCustomNote(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-cream/30 border border-black/10 rounded-xl text-xs text-noir focus:outline-none focus:border-noir leading-relaxed"
+                  />
+                </div>
+
+                {/* Advance & Override Buttons */}
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                  {nextStatus ? (
+                    <button
+                      type="button"
+                      disabled={workflowActionLoading}
+                      onClick={() => handleAdvanceOrderStatus(booking._id, booking.orderStatus, workflowCustomNote)}
+                      className="w-full sm:flex-1 py-3.5 bg-noir hover:bg-obsidian text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      <Zap className="w-4 h-4 text-amber-300" />
+                      <span>{workflowActionLoading ? 'Updating...' : `Confirm & Advance to ${nextStageObj?.label || nextStatus}`}</span>
+                    </button>
+                  ) : (
+                    <div className="w-full py-3 bg-emerald-100 text-emerald-900 text-center font-bold text-xs rounded-xl">
+                      ✓ Lifecycle Fully Completed
+                    </div>
+                  )}
+
+                  {/* Direct Status Jump Selector */}
+                  <div className="w-full sm:w-auto">
+                    <select
+                      value={booking.orderStatus}
+                      onChange={(e) => {
+                        if (e.target.value !== booking.orderStatus) {
+                          handleUpdateWorkflowStatus(booking._id, e.target.value, workflowCustomNote || `Admin updated stage to ${e.target.value}`);
+                        }
+                      }}
+                      className="w-full sm:w-auto px-3 py-3 bg-white border border-black/15 rounded-xl text-xs font-semibold text-noir focus:outline-none focus:border-noir cursor-pointer"
+                    >
+                      {WORKFLOW_STAGES.map((st) => (
+                        <option key={st.id} value={st.id}>
+                          Jump to: #{workflowOrder.indexOf(st.id) + 1} {st.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Security Deposit Settlement */}
+              <div className="bg-white p-6 rounded-3xl border border-black/10 shadow-framer-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                    <h4 className="font-display text-base font-bold text-noir">
+                      Return QC & Security Deposit Settlement
+                    </h4>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                    booking.depositStatus === 'FULLY_REFUNDED'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {booking.depositStatus}
+                  </span>
+                </div>
+
+                <div className="p-4 bg-sand/30 rounded-2xl border border-black/5 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-ash uppercase block">Escrow Deposit Amount</span>
+                    <span className="font-display text-2xl font-black text-noir">₹{booking.securityDeposit?.toLocaleString()}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-bold text-ash uppercase block">Customer Payment Source</span>
+                    <span className="text-xs font-semibold text-noir">UPI / Razorpay Verified</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    disabled={workflowActionLoading || booking.depositStatus === 'FULLY_REFUNDED'}
+                    onClick={() => {
+                      if (window.confirm(`Release full security deposit refund of ₹${booking.securityDeposit} to customer?`)) {
+                        handleUpdateWorkflowStatus(booking._id, booking.orderStatus, 'Full security deposit refund released to customer', 'FULLY_REFUNDED');
+                      }
+                    }}
+                    className="py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{booking.depositStatus === 'FULLY_REFUNDED' ? 'Deposit Fully Refunded' : `Release 100% Refund (₹${booking.securityDeposit})`}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={workflowActionLoading || booking.depositStatus === 'FULLY_REFUNDED'}
+                    onClick={() => setShowPenaltyModal(true)}
+                    className="py-3 px-4 bg-white hover:bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    <span>Deduct Damage Penalty</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 3: Doorstep Logistics & Delivery Address */}
+              <div className="bg-white p-6 rounded-3xl border border-black/10 shadow-framer-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-noir" />
+                    <h4 className="font-display text-base font-bold text-noir">
+                      Doorstep Logistics & Concierge Address
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-bold text-ash uppercase">Mumbai Fulfillment</span>
+                </div>
+
+                <div className="p-4 bg-cream/40 rounded-2xl border border-black/5 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-noir/70 shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-xs font-bold text-noir block">{customerName}</span>
+                      <p className="text-xs text-ash mt-0.5 leading-relaxed">{fullAddress || 'Address on file'}</p>
+                      <span className="text-[11px] font-mono font-bold text-noir block mt-1">Phone: {customerPhone}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 bg-white hover:bg-cream border border-black/15 text-noir rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Open in Google Maps</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${customerName}\n${customerPhone}\n${fullAddress}`);
+                      alert('Delivery details copied to clipboard!');
+                    }}
+                    className="px-4 py-2 bg-white hover:bg-cream border border-black/15 text-noir rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Copy Address</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 4: Chronological Audit Trail & Status History */}
+              <div className="bg-white p-6 rounded-3xl border border-black/10 shadow-framer-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-ash" />
+                    <h4 className="font-display text-base font-bold text-noir">
+                      Activity Audit Trail & History
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-bold text-ash">
+                    {booking.statusHistory?.length || 0} events logged
+                  </span>
+                </div>
+
+                {booking.statusHistory?.length > 0 ? (
+                  <div className="space-y-3 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-black/5">
+                    {booking.statusHistory.slice().reverse().map((entry, i) => (
+                      <div key={i} className="flex items-start gap-3 relative pl-6">
+                        <div className="w-2.5 h-2.5 rounded-full bg-noir absolute left-1.5 top-1.5 ring-4 ring-white" />
+                        <div className="min-w-0 flex-1 p-3 bg-cream/30 rounded-xl border border-black/5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono text-[11px] font-black text-noir">{entry.status?.replace(/_/g, ' ')}</span>
+                            <span className="text-[10px] text-ash whitespace-nowrap">
+                              {new Date(entry.timestamp).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          {entry.note && (
+                            <p className="text-[11px] text-ash mt-1 leading-snug">{entry.note}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-ash italic py-2">No previous status history entries recorded.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column: Garment Details & Concierge Profile (5 Cols) */}
+            <div className="lg:col-span-5 space-y-6">
+              {/* Card 5: Garment & Outfit Card */}
+              <div className="bg-white p-6 rounded-3xl border border-black/10 shadow-framer-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                  <h4 className="font-display text-base font-bold text-noir">
+                    Outfit & SKU Details
+                  </h4>
+                  <span className="font-mono text-[10px] font-bold text-ash uppercase">
+                    ID: {booking.productId?.productId}
+                  </span>
+                </div>
+
+                <div className="aspect-[3/4] w-full rounded-2xl overflow-hidden bg-sand relative border border-black/5">
+                  <img
+                    src={booking.productId?.images?.[0]}
+                    alt={booking.productId?.name}
+                    className="w-full h-full object-cover object-top"
+                  />
+                  <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-white/95 text-noir shadow-sm">
+                    {booking.productId?.category}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <h3 className="font-display text-lg font-bold text-noir leading-tight">
+                    {booking.productId?.name}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-ash">
+                    <span>Size: <strong className="text-noir font-bold">{booking.productId?.size || 'Standard'}</strong></span>
+                    <span>•</span>
+                    <span>Condition: <strong className="text-emerald-800 font-bold">{booking.productId?.condition || 'Pristine'}</strong></span>
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-cream/40 rounded-2xl border border-black/5 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-[10px] text-ash block font-bold uppercase">Rental Start</span>
+                    <strong className="text-noir font-bold">{new Date(booking.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-ash block font-bold uppercase">Rental End</span>
+                    <strong className="text-noir font-bold">{new Date(booking.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 6: Customer Concierge Card */}
+              <div className="bg-white p-6 rounded-3xl border border-black/10 shadow-framer-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-black/5 pb-3">
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-noir" />
+                    <h4 className="font-display text-base font-bold text-noir">
+                      Customer Profile
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    Verified Customer
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between p-2.5 bg-sand/30 rounded-xl">
+                    <span className="text-ash font-medium">Name:</span>
+                    <strong className="text-noir font-bold">{customerName}</strong>
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 bg-sand/30 rounded-xl">
+                    <span className="text-ash font-medium">Email:</span>
+                    <span className="text-noir font-medium">{booking.customerId?.email || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 bg-sand/30 rounded-xl">
+                    <span className="text-ash font-medium">Phone:</span>
+                    <span className="font-mono font-bold text-noir">{customerPhone || '—'}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span>WhatsApp</span>
+                  </a>
+                  {customerPhone && (
+                    <a
+                      href={`tel:${customerPhone}`}
+                      className="py-2.5 px-3 bg-noir hover:bg-obsidian text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>Call Now</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Card 7: Financial Breakdown */}
+              <div className="bg-white p-6 rounded-3xl border border-black/10 shadow-framer-sm space-y-3 text-xs">
+                <h4 className="font-display text-base font-bold text-noir border-b border-black/5 pb-3">
+                  Billing & Settlement
+                </h4>
+                <div className="flex justify-between py-1 border-b border-black/5 text-ash">
+                  <span>Rental Fee ({booking.rentalDuration.replace('_', ' ')}):</span>
+                  <span className="font-bold text-noir">₹{booking.rentalPrice?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-black/5 text-ash">
+                  <span>Refundable Security Deposit:</span>
+                  <span className="font-bold text-noir">₹{booking.securityDeposit?.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-black/5 text-ash">
+                  <span>Doorstep Delivery & Pickup:</span>
+                  <span className="font-bold text-emerald-800">FREE (Included)</span>
+                </div>
+                <div className="flex justify-between pt-2 font-display text-sm font-black text-noir">
+                  <span>Grand Total Paid:</span>
+                  <span>₹{booking.totalAmount?.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* Penalty Deduction Modal */}
+        {showPenaltyModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-noir/70 backdrop-blur-sm animate-in fade-in duration-150">
+            <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-black/10 pb-3">
+                <h3 className="font-display text-lg font-bold text-noir">
+                  Deduct Damage Penalty
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowPenaltyModal(false)}
+                  className="p-1 rounded-full hover:bg-cream"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-ash">
+                Enter the amount to be deducted from the customer's ₹{booking.securityDeposit} security deposit for fabric stain removal, zipper repair, or replacement.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-ash uppercase tracking-wider mb-1">
+                    Deduction Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    max={booking.securityDeposit}
+                    value={penaltyAmount}
+                    onChange={(e) => setPenaltyAmount(e.target.value)}
+                    placeholder="E.g. 500"
+                    className="w-full px-3.5 py-2.5 bg-cream/40 border border-black/10 rounded-xl text-xs text-noir focus:outline-none focus:border-noir font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-ash uppercase tracking-wider mb-1">
+                    Reason / Damage Inspection Note
+                  </label>
+                  <input
+                    type="text"
+                    value={penaltyReason}
+                    onChange={(e) => setPenaltyReason(e.target.value)}
+                    placeholder="E.g. Makeup stain on neckline requiring deep dry clean restoration"
+                    className="w-full px-3.5 py-2.5 bg-cream/40 border border-black/10 rounded-xl text-xs text-noir focus:outline-none focus:border-noir"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPenaltyModal(false)}
+                  className="flex-1 py-2.5 border border-black/15 text-noir rounded-xl text-xs font-semibold hover:bg-cream"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const fine = Number(penaltyAmount);
+                    if (!fine || fine <= 0) {
+                      alert('Please enter a valid penalty amount.');
+                      return;
+                    }
+                    const refundBal = (booking.securityDeposit || 0) - fine;
+                    handleUpdateWorkflowStatus(
+                      booking._id,
+                      booking.orderStatus,
+                      `Deducted penalty ₹${fine} (${penaltyReason || 'Damage repair'}). Balance ₹${refundBal} refunded.`,
+                      'PARTIALLY_REFUNDED'
+                    );
+                    setShowPenaltyModal(false);
+                    setPenaltyAmount('');
+                    setPenaltyReason('');
+                  }}
+                  className="flex-1 py-2.5 bg-noir hover:bg-obsidian text-white rounded-xl text-xs font-bold uppercase tracking-wider"
+                >
+                  Apply & Settle
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -1191,18 +1986,19 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
                       return (
                         <div
                           key={b._id}
-                          className="bg-white p-4 rounded-3xl border border-black/10 shadow-framer-sm space-y-3"
+                          onClick={() => setSelectedBookingWorkflow(b)}
+                          className="bg-white p-4 rounded-3xl border border-black/10 shadow-framer-sm space-y-3 hover:border-black/30 transition-all cursor-pointer"
                         >
                           {/* Card Header: ID + Status */}
                           <div className="flex items-center justify-between border-b border-black/5 pb-2.5">
                             <div>
                               <span className="font-mono text-xs font-black text-noir">{b.bookingId}</span>
                               <span className="text-[10px] text-ash block">
-                                {new Date(b.createdAt || Date.now()).toLocaleDateString()}
+                                {new Date(b.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </span>
                             </div>
                             <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200/80">
-                              {b.orderStatus}
+                              {b.orderStatus.replace(/_/g, ' ')}
                             </span>
                           </div>
 
@@ -1221,7 +2017,7 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
                                 Duration: <strong className="text-noir">{b.rentalDuration.replace('_', ' ')}</strong>
                               </p>
                               <p className="text-[10px] text-ash">
-                                {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
+                                {new Date(b.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – {new Date(b.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                               </p>
                             </div>
                           </div>
@@ -1234,13 +2030,9 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-ash">Phone:</span>
-                              <a
-                                href={`tel:${b.customerId?.phone || b.deliveryAddress?.phone}`}
-                                className="font-bold text-emerald-700 underline flex items-center gap-1"
-                              >
-                                <Phone className="w-2.5 h-2.5" />
+                              <span className="font-bold text-emerald-700">
                                 {b.customerId?.phone || b.deliveryAddress?.phone}
-                              </a>
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-ash">Delivery:</span>
@@ -1252,21 +2044,18 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
                             </div>
                           </div>
 
-                          {/* Action Button: Advance Workflow */}
-                          {next ? (
-                            <button
-                              type="button"
-                              onClick={() => handleAdvanceOrderStatus(b._id, b.orderStatus)}
-                              className="w-full py-3 bg-noir hover:bg-obsidian text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
-                            >
-                              <span>Next: {next.replace(/_/g, ' ')}</span>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <div className="text-center py-2 text-xs font-bold text-emerald-800 bg-emerald-50 rounded-xl">
-                              ✓ Order Completed
-                            </div>
-                          )}
+                          {/* Action Button: Manage Full Workflow */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedBookingWorkflow(b);
+                            }}
+                            className="w-full py-3 bg-noir hover:bg-obsidian text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                          >
+                            <span>Open Workflow Hub</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       );
                     })}
@@ -1283,12 +2072,16 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
                             <th className="p-4">Dates & Duration</th>
                             <th className="p-4">Paid & Deposit</th>
                             <th className="p-4">Status</th>
-                            <th className="p-4 text-right">Action</th>
+                            <th className="p-4 text-right">Workflow Action</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-black/5">
                           {filteredBookings.map((b) => (
-                            <tr key={b._id} className="hover:bg-cream/30 transition-colors">
+                            <tr
+                              key={b._id}
+                              onClick={() => setSelectedBookingWorkflow(b)}
+                              className="hover:bg-cream/40 transition-colors cursor-pointer group"
+                            >
                               <td className="p-4">
                                 <div className="flex items-center gap-3">
                                   <img
@@ -1297,7 +2090,7 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
                                     className="w-12 h-14 object-cover rounded-xl bg-sand shrink-0 border border-black/5"
                                   />
                                   <div>
-                                    <span className="font-mono text-xs font-bold text-noir block">{b.bookingId}</span>
+                                    <span className="font-mono text-xs font-bold text-noir block group-hover:text-emerald-800 transition-colors">{b.bookingId}</span>
                                     <span className="text-ash font-medium block truncate max-w-[140px]">{b.productId?.name}</span>
                                     <span className="text-[10px] text-emerald-800 font-bold">{b.productId?.category}</span>
                                   </div>
@@ -1311,7 +2104,7 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
                               <td className="p-4">
                                 <span className="font-bold text-noir">{b.rentalDuration.replace('_', ' ')}</span>
                                 <div className="text-[10px] text-ash">
-                                  {new Date(b.startDate).toLocaleDateString()} – {new Date(b.endDate).toLocaleDateString()}
+                                  {new Date(b.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – {new Date(b.endDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                 </div>
                               </td>
                               <td className="p-4">
@@ -1319,23 +2112,24 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
                                 <div className="text-[10px] text-emerald-700 font-medium">Dep: ₹{b.securityDeposit} ({b.depositStatus})</div>
                               </td>
                               <td className="p-4">
-                                <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900">
-                                  {b.orderStatus}
+                                <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900 uppercase">
+                                  {b.orderStatus.replace(/_/g, ' ')}
                                 </span>
                               </td>
                               <td className="p-4 text-right">
-                                {getNextStatus(b.orderStatus) ? (
+                                <div className="inline-flex items-center gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => handleAdvanceOrderStatus(b._id, b.orderStatus)}
-                                    className="px-3 py-1.5 bg-noir text-white text-[11px] font-bold rounded-lg hover:bg-obsidian transition-colors inline-flex items-center gap-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedBookingWorkflow(b);
+                                    }}
+                                    className="px-3 py-1.5 bg-noir hover:bg-obsidian text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center gap-1 shadow-2xs"
                                   >
-                                    <span>Advance</span>
+                                    <span>Manage Workflow</span>
                                     <ChevronRight className="w-3 h-3" />
                                   </button>
-                                ) : (
-                                  <span className="text-[11px] font-bold text-emerald-800">Done</span>
-                                )}
+                                </div>
                               </td>
                             </tr>
                           ))}

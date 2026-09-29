@@ -17,17 +17,25 @@ export const CartProvider = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   useEffect(() => {
+    if (user) {
+      try {
+        localStorage.setItem('floset_cart', JSON.stringify(cartItems));
+      } catch {
+        // ignore
+      }
+    }
+  }, [cartItems, user]);
+
+  useEffect(() => {
     if (!user) {
-      setCartItems([]);
+      setCartItems((prev) => (prev.length > 0 ? [] : prev));
       try {
         localStorage.removeItem('floset_cart');
       } catch {
         // ignore
       }
-    } else {
-      localStorage.setItem('floset_cart', JSON.stringify(cartItems));
     }
-  }, [cartItems, user]);
+  }, [user]);
 
   const addToCart = (rentalItem) => {
     // rentalItem contains { product, duration, startDate, endDate, rentalPrice, securityDeposit }

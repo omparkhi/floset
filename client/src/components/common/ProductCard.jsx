@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart } from 'lucide-react';
+import { Heart, Zap, Calendar } from 'lucide-react';
 import { useWishlist } from '../../context/WishlistContext';
 
 export default function ProductCard({ product, onSelect, onQuickRent }) {
@@ -68,6 +68,36 @@ export default function ProductCard({ product, onSelect, onQuickRent }) {
                 isLiked ? 'fill-red-500 text-red-500' : 'text-noir/80'
               }`}
             />
+          </button>
+        </div>
+
+        {/* Quick Action Overlay on Image */}
+        <div className="absolute inset-x-3 bottom-3 flex items-center gap-2 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 z-10 pointer-events-auto">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onQuickRent) {
+                onQuickRent(product);
+              } else {
+                onSelect(product);
+              }
+            }}
+            className="flex-1 py-2.5 px-3 bg-noir/90 hover:bg-noir backdrop-blur-md text-white rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer border border-white/10"
+          >
+            <Zap className="w-3 h-3 text-amber-300" />
+            <span>Order Now</span>
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(product);
+            }}
+            className="py-2.5 px-3 bg-white/95 hover:bg-cream backdrop-blur-md text-noir rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95 cursor-pointer border border-black/10"
+          >
+            <Calendar className="w-3 h-3 text-noir/70" />
+            <span>Book</span>
           </button>
         </div>
       </div>

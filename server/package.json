@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js",
+    "dev": "node --watch --watch-path=./routes --watch-path=./controllers --watch-path=./models --watch-path=./config --watch-path=./utils --watch-path=server.js server.js",
     "seed": "node utils/seedData.js",
     "seed:journal": "node utils/seedJournalArticles.js",
     "create:admin": "node utils/createAdmin.js"

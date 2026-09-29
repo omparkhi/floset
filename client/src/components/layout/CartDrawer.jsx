@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { X, Calendar, ShieldCheck, Truck, Sparkles, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Calendar, ShieldCheck, Truck, Sparkles, ArrowRight, CheckCircle2, AlertCircle, Zap, MessageCircle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { buildWhatsAppOrderConfirmationUrl } from '../../config';
 
 export default function CartDrawer({ onNavigate, onOpenAuth }) {
   const { cartItems, isCartOpen, closeCart, removeFromCart, clearCart, totalRentalPrice, totalDeposit, grandTotal } = useCart();
@@ -61,6 +62,14 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
       });
 
       clearCart();
+
+      // Automatically launch WhatsApp with prefilled booking details
+      try {
+        const waUrl = buildWhatsAppOrderConfirmationUrl(res.booking);
+        window.open(waUrl, '_blank', 'noopener,noreferrer');
+      } catch (e) {
+        console.warn('Auto-open WhatsApp blocked by browser popup setting:', e);
+      }
     } catch (err) {
       setError(err.message || 'Failed to place booking');
     } finally {
@@ -98,7 +107,7 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
           {/* Drawer Body */}
           <div className="p-6 flex-grow space-y-6">
             {successBooking ? (
-              <div className="text-center py-10 space-y-4">
+              <div className="text-center py-8 space-y-4">
                 <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
                   <CheckCircle2 className="w-10 h-10" />
                 </div>
@@ -110,14 +119,36 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                   Our concierge team has initiated dry-cleaning & sanitization for doorstep delivery.
                 </p>
 
-                <div className="pt-4 flex flex-col gap-2">
+                {/* 1-Tap WhatsApp Concierge Notification */}
+                <div className="p-4 bg-emerald-50/90 border border-emerald-300/80 rounded-2xl text-left space-y-2.5 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span className="text-xs font-bold text-emerald-950">
+                      WhatsApp Concierge Dispatched
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-900/80 leading-relaxed">
+                    Opening WhatsApp with your booking reference. If your browser blocked the automatic tab, click below to open your chat:
+                  </p>
+                  <a
+                    href={buildWhatsAppOrderConfirmationUrl(successBooking)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full py-3 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Open WhatsApp Chat Now</span>
+                  </a>
+                </div>
+
+                <div className="pt-2 flex flex-col gap-2">
                   <button
                     onClick={() => {
                       closeCart();
                       setSuccessBooking(null);
                       onNavigate('bookings');
                     }}
-                    className="w-full py-3 bg-noir text-white text-xs font-bold rounded-xl hover:bg-obsidian transition-colors shadow-sm"
+                    className="w-full py-3 bg-noir text-white text-xs font-bold rounded-xl hover:bg-obsidian transition-colors shadow-sm cursor-pointer"
                   >
                     Track Live Booking Status
                   </button>
@@ -127,7 +158,7 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                       setSuccessBooking(null);
                       onNavigate('shop');
                     }}
-                    className="w-full py-2.5 border border-black/15 text-noir text-xs font-semibold rounded-xl hover:bg-cream transition-colors"
+                    className="w-full py-2.5 border border-black/15 text-noir text-xs font-semibold rounded-xl hover:bg-cream transition-colors cursor-pointer"
                   >
                     Continue Browsing Outfits
                   </button>
@@ -167,7 +198,7 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                       <div>
                         <div className="flex items-start justify-between">
                           <span className="text-[10px] font-bold text-ash uppercase">
-                            {item.product.category} • Size {item.product.size}
+                            {item.product.category} • Size {item.size || item.product.size}
                           </span>
                           <button
                             onClick={removeFromCart}
@@ -180,6 +211,13 @@ export default function CartDrawer({ onNavigate, onOpenAuth }) {
                           {item.product.name}
                         </h4>
                       </div>
+
+                      {item.isExpressOrder && (
+                        <div className="mt-2 px-2.5 py-1 bg-sand/60 border border-black/10 rounded-lg flex items-center gap-1.5 text-noir text-[10px] font-bold">
+                          <Zap className="w-3 h-3 text-amber-600 flex-shrink-0" />
+                          <span className="uppercase tracking-wider">Express Dispatch — Priority Delivery</span>
+                        </div>
+                      )}
 
                       <div className="text-[11px] text-ash/90 space-y-0.5 mt-2 bg-white/70 p-2 rounded-lg border border-black/5">
                         <div className="flex items-center gap-1 font-semibold text-noir">

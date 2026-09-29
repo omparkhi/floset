@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Heart, ShieldCheck, Sparkles, Truck, RefreshCw, Ruler, Check, AlertCircle, Share2 } from 'lucide-react';
+import { Heart, ShieldCheck, Sparkles, Truck, RefreshCw, Ruler, Check, AlertCircle, Share2, Zap, Calendar, Clock, MessageCircle } from 'lucide-react';
 import AvailabilityCalendar from '../components/common/AvailabilityCalendar';
 import ProductCard from '../components/common/ProductCard';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { buildWhatsAppQuickInquiryUrl } from '../config';
 
 export default function ProductDetailPage({ product, onSelectProduct, onNavigate, onOpenAuth }) {
   const { user } = useAuth();
@@ -69,17 +70,62 @@ export default function ProductDetailPage({ product, onSelectProduct, onNavigate
     }
 
     if (!dateSelection.isAvailable) {
-      alert('This outfit is not available for the selected dates. Please choose another date range.');
+      alert('This outfit is not available for the selected dates. Please choose another date range on the calendar.');
+      return;
+    }
+
+    if (!dateSelection.startDate || !dateSelection.endDate) {
+      alert('Please select your preferred dates on the calendar.');
       return;
     }
 
     addToCart({
       product,
+      size: selectedSize,
       duration: selectedDuration,
       startDate: dateSelection.startDate,
       endDate: dateSelection.endDate,
       rentalPrice: currentPrice,
-      securityDeposit: product.securityDeposit || 1000
+      securityDeposit: product.securityDeposit || 1000,
+      isExpressOrder: false
+    });
+  };
+
+  const handleOrderNow = () => {
+    if (!user) {
+      if (onOpenAuth) onOpenAuth();
+      return;
+    }
+
+    if (!dateSelection.isAvailable) {
+      alert('This outfit is already booked for the selected dates. Please pick open dates on the calendar.');
+      return;
+    }
+
+    // Use calendar's selected dates
+    const startDate = dateSelection.startDate || new Date().toISOString().split('T')[0];
+    const endDate = dateSelection.endDate || (() => {
+      const end = new Date(startDate);
+      let days = 3;
+      if (selectedDuration === '3_hours') days = 0;
+      else if (selectedDuration === '1_day') days = 1;
+      else if (selectedDuration === '3_days') days = 3;
+      else if (selectedDuration === '5_days') days = 5;
+      else if (selectedDuration === '7_days') days = 7;
+      if (days > 0) end.setDate(end.getDate() + days);
+      return end.toISOString().split('T')[0];
+    })();
+
+    addToCart({
+      product,
+      size: selectedSize,
+      duration: selectedDuration,
+      startDate,
+      endDate,
+      rentalPrice: currentPrice,
+      securityDeposit: product.securityDeposit || 1000,
+      isExpressOrder: true,
+      deliverySpeed: 'Express 90-Min / Same-Day Rush'
     });
   };
 
@@ -383,34 +429,88 @@ export default function ProductDetailPage({ product, onSelectProduct, onNavigate
               onDatesChange={(dates) => setDateSelection(dates)}
             />
 
-            {/* Rent & Wishlist CTAs */}
-            <div className="space-y-3 pt-2">
+            {/* Express Rush Delivery Callout */}
+            <div className="p-3.5 bg-sand/40 border border-black/10 rounded-2xl flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-noir text-white flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4 text-amber-200" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-noir">
+                    Express Same-Day Dispatch
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 bg-noir text-white rounded-full">
+                    90-Min Rush
+                  </span>
+                </div>
+                <p className="text-[11px] text-ash mt-0.5 leading-snug">
+                  Need it urgently? Select <strong>Order Now</strong> for priority same-day concierge delivery.
+                </p>
+              </div>
+            </div>
+
+            {/* CTAs: Order Now, Book for Occasion, Wishlist */}
+            <div className="space-y-2.5 pt-1">
+              {/* Primary: ORDER NOW */}
+              <button
+                type="button"
+                onClick={handleOrderNow}
+                className="w-full py-3.5 px-6 bg-noir hover:bg-obsidian text-white text-[11px] font-bold uppercase tracking-widest rounded-2xl transition-all shadow-sm hover:shadow-md active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer border border-transparent"
+              >
+                <Zap className="w-3.5 h-3.5 text-amber-300" />
+                <span>
+                  {!user ? 'Sign In & Order Now (Express)' : 'Order Now — Same-Day Express'}
+                </span>
+              </button>
+
+              {/* Secondary: BOOK FOR OCCASION */}
               <button
                 type="button"
                 onClick={handleRentNow}
                 disabled={user && !dateSelection.isAvailable}
-                className="w-full py-4 bg-noir hover:bg-obsidian text-white text-xs font-bold uppercase tracking-wider rounded-2xl transition-all shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3.5 px-6 bg-white hover:bg-cream border border-noir/20 hover:border-noir text-noir text-[11px] font-bold uppercase tracking-widest rounded-2xl transition-all shadow-2xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
               >
+                <Calendar className="w-3.5 h-3.5 text-noir/70" />
                 <span>
                   {!user
-                    ? 'Sign In to Rent Outfit'
+                    ? 'Sign In to Book for Date'
                     : dateSelection.isAvailable
-                      ? 'Book Outfit Rental'
-                      : 'Unavailable for Selected Dates'}
+                      ? 'Book for Occasion Date'
+                      : 'Unavailable on Selected Dates'}
                 </span>
               </button>
 
+              {/* Wishlist CTA */}
               <button
+                type="button"
                 onClick={() => toggleWishlist(product)}
-                className={`w-full py-3 rounded-2xl border text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${
+                className={`w-full py-2.5 rounded-2xl border text-xs font-semibold flex items-center justify-center gap-2 transition-colors ${
                   isLiked
                     ? 'border-red-200 bg-red-50 text-red-600'
-                    : 'border-black/15 hover:bg-cream text-noir'
+                    : 'border-black/10 hover:bg-cream text-noir/80'
                 }`}
               >
-                <Heart className={`w-4 h-4 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
+                <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
                 <span>{isLiked ? 'Saved in Wishlist' : 'Add to Wishlist'}</span>
               </button>
+
+              {/* Instant WhatsApp Order / Inquiry */}
+              <a
+                href={buildWhatsAppQuickInquiryUrl({
+                  product,
+                  size: selectedSize,
+                  duration: selectedDuration,
+                  startDate: dateSelection.startDate,
+                  endDate: dateSelection.endDate,
+                  user
+                })}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-2xl text-[11px] font-bold flex items-center justify-center gap-2 transition-all shadow-2xs"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Order Directly on WhatsApp</span>
+              </a>
             </div>
 
             {/* Delivery & Hygiene Guarantees */}
