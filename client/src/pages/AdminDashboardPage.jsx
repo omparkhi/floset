@@ -47,6 +47,7 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
   const [pendingListings, setPendingListings] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
+  const [rentalOrders, setRentalOrders] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -86,16 +87,18 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
     if (!user || user.role !== 'admin') return;
     setLoading(true);
     try {
-      const [pendingRes, productsRes, bookingsRes, statsRes] = await Promise.all([
+      const [pendingRes, productsRes, bookingsRes, statsRes, ordersRes] = await Promise.all([
         api.admin.getPendingListings(),
         api.admin.getAllProducts(),
         api.admin.getAllBookings(),
-        api.admin.getStats()
+        api.admin.getStats(),
+        api.orders.getAll()
       ]);
 
       setPendingListings(pendingRes.listings || []);
       setAllProducts(productsRes.products || []);
       setAllBookings(bookingsRes.bookings || []);
+      setRentalOrders(ordersRes.orders || []);
       setStats(statsRes.stats || null);
     } catch (err) {
       console.error('Admin fetch error:', err);
@@ -110,6 +113,7 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
       setPendingListings([]);
       setAllProducts([]);
       setAllBookings([]);
+      setRentalOrders([]);
       setStats(null);
       return;
     }
@@ -387,9 +391,27 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
     }
   };
 
+  const handleReviewRentalRequest = async (orderId, status) => {
+    try {
+      await api.orders.review(orderId, status);
+      await fetchAdminData();
+    } catch (err) {
+      alert(err.message || 'Rental request update failed');
+    }
+  };
+
+  const handleRentalItemStatus = async (orderId, itemId, status) => {
+    try {
+      await api.orders.updateItemStatus(orderId, itemId, status);
+      await fetchAdminData();
+    } catch (err) {
+      alert(err.message || 'Rental item status update failed');
+    }
+  };
+
   const tabNav = [
     { id: 'approvals', label: 'Listing Approvals', icon: LayoutList, count: pendingListings.length },
-    { id: 'orders', label: 'Rental Workflow', icon: Truck, count: allBookings.length },
+    { id: 'orders', label: 'Rental Workflow', icon: Truck, count: rentalOrders.filter((order) => order.status === 'PENDING').length + allBookings.length },
     { id: 'inventory', label: 'Platform Inventory', icon: Package, count: allProducts.length }
   ];
 
@@ -404,6 +426,16 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
       b.deliveryAddress?.name?.toLowerCase().includes(q) ||
       b.orderStatus?.toLowerCase().includes(q)
     );
+  });
+
+  const filteredRentalOrders = rentalOrders.filter((order) => {
+    if (!ordersSearch.trim()) return true;
+    const query = ordersSearch.toLowerCase();
+    return order.orderId?.toLowerCase().includes(query) ||
+      order.customerName?.toLowerCase().includes(query) ||
+      order.customerPhone?.toLowerCase().includes(query) ||
+      order.status?.toLowerCase().includes(query) ||
+      order.items?.some((item) => item.productName?.toLowerCase().includes(query));
   });
 
   // Filtering for inventory
@@ -1971,6 +2003,74 @@ export default function AdminDashboardPage({ onNavigate, onOpenAuth }) {
                   />
                 </div>
               </div>
+
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-display text-base font-bold text-noir">WhatsApp Rental Requests</h3>
+                    <p className="text-xs text-ash">Verify availability before approving. Only confirmed items reserve dates.</p>
+                  </div>
+                  <span className="text-xs font-bold text-amber-900 bg-amber-100 px-2.5 py-1 rounded-full">
+                    {rentalOrders.filter((order) => order.status === 'PENDING').length} pending
+                  </span>
+                </div>
+                {filteredRentalOrders.length === 0 ? (
+                  <div className="p-6 bg-white rounded-2xl border border-black/10 text-xs text-ash">
+                    No rental requests have been submitted.
+                  </div>
+                ) : filteredRentalOrders.map((order) => (
+                  <article key={order._id} className="p-4 sm:p-5 bg-white rounded-2xl border border-black/10 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 border-b border-black/5 pb-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <strong className="font-mono text-sm text-noir">{order.orderId}</strong>
+                          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-cream text-noir">{order.status}</span>
+                        </div>
+                        <p className="text-xs text-noir mt-1">{order.customerName} · <a className="text-emerald-800 underline" href={`tel:${order.customerPhone}`}>{order.customerPhone}</a></p>
+                        <p className="text-[10px] text-ash mt-1">Submitted {new Date(order.createdAt).toLocaleString()}</p>
+                      </div>
+                      <div className="sm:text-right">
+                        <span className="block text-[10px] font-bold uppercase text-ash">Rental total</span>
+                        <strong className="font-display text-lg text-noir">₹{order.totalAmount?.toLocaleString('en-IN')}</strong>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {order.items?.map((item) => (
+                        <div key={item._id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-xl bg-cream/40 border border-black/5">
+                          <img src={item.image} alt={item.productName} className="w-12 h-14 object-cover rounded-lg bg-sand shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-bold text-xs text-noir">{item.productName}</p>
+                            <p className="text-[10px] text-ash">{item.type} · {new Date(item.startDate).toLocaleDateString()} – {new Date(item.endDate).toLocaleDateString()} · ₹{(item.rentalPrice * item.quantity).toLocaleString('en-IN')}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white border border-black/10">{item.status}</span>
+                            {order.status !== 'PENDING' && !['REJECTED', 'COMPLETED'].includes(item.status) && (
+                              <select
+                                value={item.status}
+                                onChange={(event) => handleRentalItemStatus(order._id, item._id, event.target.value)}
+                                className="max-w-44 px-2 py-2 text-[10px] font-bold bg-white border border-black/10 rounded-lg text-noir"
+                                aria-label={`Update ${item.productName} status`}
+                              >
+                                {['CONFIRMED', ...(item.type === 'BOOKING' ? ['SCHEDULED'] : []), 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'RENTED', 'RETURNED', 'COMPLETED'].map((status) => (
+                                  <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {order.status === 'PENDING' && (
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button type="button" onClick={() => handleReviewRentalRequest(order._id, 'REJECTED')} className="px-4 py-2 text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100">Reject</button>
+                        <button type="button" onClick={() => handleReviewRentalRequest(order._id, 'CONFIRMED')} className="px-4 py-2 text-xs font-bold text-white bg-noir rounded-lg hover:bg-obsidian">Approve</button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </section>
 
               {filteredBookings.length === 0 ? (
                 <div className="p-12 text-center bg-white rounded-3xl border border-black/10">

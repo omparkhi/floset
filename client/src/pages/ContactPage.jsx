@@ -45,7 +45,7 @@ export default function ContactPage() {
                 <Phone className="w-4 h-4 text-noir" />
                 <div>
                   <strong>Phone / WhatsApp Concierge:</strong>
-                  <p className="text-ash text-[11px]">+91 98765 43210 (9:00 AM – 9:00 PM IST)</p>
+                  <p className="text-ash text-[11px]">+91 90224 47764 (9:00 AM – 9:00 PM IST)</p>
                 </div>
               </div>
 

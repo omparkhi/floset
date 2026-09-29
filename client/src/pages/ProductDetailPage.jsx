@@ -69,13 +69,18 @@ export default function ProductDetailPage({ product, onSelectProduct, onNavigate
       return;
     }
 
-    if (!dateSelection.isAvailable) {
-      alert('This outfit is not available for the selected dates. Please choose another date range on the calendar.');
+    if (!selectedSize) {
+      alert('Please select a size first.');
       return;
     }
 
     if (!dateSelection.startDate || !dateSelection.endDate) {
       alert('Please select your preferred dates on the calendar.');
+      return;
+    }
+
+    if (!dateSelection.isAvailable) {
+      alert('This outfit is not available for the selected dates. Please choose another date range on the calendar.');
       return;
     }
 
@@ -87,6 +92,8 @@ export default function ProductDetailPage({ product, onSelectProduct, onNavigate
       endDate: dateSelection.endDate,
       rentalPrice: currentPrice,
       securityDeposit: product.securityDeposit || 1000,
+      type: 'BOOKING',
+      quantity: 1,
       isExpressOrder: false
     });
   };
@@ -94,6 +101,11 @@ export default function ProductDetailPage({ product, onSelectProduct, onNavigate
   const handleOrderNow = () => {
     if (!user) {
       if (onOpenAuth) onOpenAuth();
+      return;
+    }
+
+    if (!selectedSize) {
+      alert('Please select a size first.');
       return;
     }
 
@@ -124,9 +136,19 @@ export default function ProductDetailPage({ product, onSelectProduct, onNavigate
       endDate,
       rentalPrice: currentPrice,
       securityDeposit: product.securityDeposit || 1000,
+      type: 'ORDER',
+      quantity: 1,
       isExpressOrder: true,
       deliverySpeed: 'Express 90-Min / Same-Day Rush'
     });
+  };
+
+  const handleAddRental = (type) => {
+    if (type === 'ORDER') {
+      handleOrderNow();
+    } else {
+      handleRentNow();
+    }
   };
 
   const durationOptions = [

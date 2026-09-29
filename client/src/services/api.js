@@ -1,6 +1,6 @@
-import { API_BASE_URL } from '../config';
-import { demoArticles } from '../data/demoArticles';
-import { demoProducts } from '../data/demoProducts';
+import { API_BASE_URL } from "../config";
+import { demoArticles } from "../data/demoArticles";
+import { demoProducts } from "../data/demoProducts";
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("floset_token");
@@ -45,39 +45,68 @@ const getFilteredDemoProducts = (params = {}) => {
     sort,
     featured,
     bestseller,
-    duration = 'duration3d',
+    duration = "duration3d",
   } = params;
 
   const filtered = demoProducts.filter((product) => {
-    const price = product.pricing?.[duration] || product.pricing?.duration3d || 0;
+    const price =
+      product.pricing?.[duration] || product.pricing?.duration3d || 0;
     const searchableText = [
       product.name,
       product.description,
       product.category,
       product.brand,
       ...(product.occasions || []),
-    ].join(' ').toLowerCase();
+    ]
+      .join(" ")
+      .toLowerCase();
 
-    if (category && category !== 'all' && product.category.toLowerCase() !== String(category).toLowerCase()) return false;
-    if (gender && gender !== 'all' && product.gender !== gender && product.gender !== 'Unisex') return false;
-    if (occasion && occasion !== 'all' && !product.occasions?.includes(occasion)) return false;
-    if (size && size !== 'all' && product.size !== size) return false;
-    if (colour && colour !== 'all' && !product.colour?.toLowerCase().includes(String(colour).toLowerCase())) return false;
-    if (featured === 'true' && !product.isFeatured) return false;
-    if (bestseller === 'true' && !product.isBestSeller) return false;
+    if (
+      category &&
+      category !== "all" &&
+      product.category.toLowerCase() !== String(category).toLowerCase()
+    )
+      return false;
+    if (
+      gender &&
+      gender !== "all" &&
+      product.gender !== gender &&
+      product.gender !== "Unisex"
+    )
+      return false;
+    if (
+      occasion &&
+      occasion !== "all" &&
+      !product.occasions?.includes(occasion)
+    )
+      return false;
+    if (size && size !== "all" && product.size !== size) return false;
+    if (
+      colour &&
+      colour !== "all" &&
+      !product.colour?.toLowerCase().includes(String(colour).toLowerCase())
+    )
+      return false;
+    if (featured === "true" && !product.isFeatured) return false;
+    if (bestseller === "true" && !product.isBestSeller) return false;
     if (minPrice && price < Number(minPrice)) return false;
     if (maxPrice && price > Number(maxPrice)) return false;
-    if (search && !searchableText.includes(String(search).toLowerCase())) return false;
+    if (search && !searchableText.includes(String(search).toLowerCase()))
+      return false;
     return true;
   });
 
-  if (sort === 'price-low') {
-    return filtered.sort((a, b) => (a.pricing?.[duration] || 0) - (b.pricing?.[duration] || 0));
+  if (sort === "price-low") {
+    return filtered.sort(
+      (a, b) => (a.pricing?.[duration] || 0) - (b.pricing?.[duration] || 0),
+    );
   }
-  if (sort === 'price-high') {
-    return filtered.sort((a, b) => (b.pricing?.[duration] || 0) - (a.pricing?.[duration] || 0));
+  if (sort === "price-high") {
+    return filtered.sort(
+      (a, b) => (b.pricing?.[duration] || 0) - (a.pricing?.[duration] || 0),
+    );
   }
-  if (sort === 'popular') {
+  if (sort === "popular") {
     return filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
   }
 
@@ -133,7 +162,10 @@ export const api = {
         const res = await fetchWithTimeout(url);
         return handleResponse(res);
       } catch (error) {
-        console.warn('Using demo products because the catalogue API is unavailable:', error);
+        console.warn(
+          "Using demo products because the catalogue API is unavailable:",
+          error,
+        );
         const products = getFilteredDemoProducts(params);
         return {
           success: true,
@@ -188,6 +220,30 @@ export const api = {
   },
 
   // Bookings
+  cart: {
+    get: async () => {
+      const res = await fetch(`${API_BASE_URL}/cart`, {
+        headers: getAuthHeaders(),
+      });
+      return handleResponse(res);
+    },
+    save: async (items) => {
+      const res = await fetch(`${API_BASE_URL}/cart`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ items }),
+      });
+      return handleResponse(res);
+    },
+    clear: async () => {
+      const res = await fetch(`${API_BASE_URL}/cart`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      return handleResponse(res);
+    },
+  },
+
   bookings: {
     create: async (bookingData) => {
       const res = await fetch(`${API_BASE_URL}/bookings`, {
@@ -207,6 +263,48 @@ export const api = {
       const res = await fetch(`${API_BASE_URL}/bookings/${id}`, {
         headers: getAuthHeaders(),
       });
+      return handleResponse(res);
+    },
+  },
+
+  orders: {
+    create: async (orderData) => {
+      const res = await fetch(`${API_BASE_URL}/orders`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(orderData),
+      });
+      return handleResponse(res);
+    },
+    getMyOrders: async () => {
+      const res = await fetch(`${API_BASE_URL}/orders/my-orders`, {
+        headers: getAuthHeaders(),
+      });
+      return handleResponse(res);
+    },
+    getAll: async () => {
+      const res = await fetch(`${API_BASE_URL}/orders/admin/all`, {
+        headers: getAuthHeaders(),
+      });
+      return handleResponse(res);
+    },
+    review: async (id, status) => {
+      const res = await fetch(`${API_BASE_URL}/orders/${id}/review`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status }),
+      });
+      return handleResponse(res);
+    },
+    updateItemStatus: async (id, itemId, status) => {
+      const res = await fetch(
+        `${API_BASE_URL}/orders/${id}/items/${itemId}/status`,
+        {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ status }),
+        },
+      );
       return handleResponse(res);
     },
   },
@@ -277,8 +375,15 @@ export const api = {
         const res = await fetchWithTimeout(`${API_BASE_URL}/journal/top`);
         return handleResponse(res);
       } catch (error) {
-        console.warn('Using demo journal articles because the journal API is unavailable:', error);
-        return { success: true, articles: demoArticles.slice(0, 3), demo: true };
+        console.warn(
+          "Using demo journal articles because the journal API is unavailable:",
+          error,
+        );
+        return {
+          success: true,
+          articles: demoArticles.slice(0, 3),
+          demo: true,
+        };
       }
     },
     getAll: async () => {
@@ -286,18 +391,26 @@ export const api = {
         const res = await fetchWithTimeout(`${API_BASE_URL}/journal`);
         return handleResponse(res);
       } catch (error) {
-        console.warn('Using demo journal articles because the journal API is unavailable:', error);
+        console.warn(
+          "Using demo journal articles because the journal API is unavailable:",
+          error,
+        );
         return { success: true, articles: demoArticles, demo: true };
       }
     },
     getBySlug: async (slug) => {
       try {
-        const res = await fetchWithTimeout(`${API_BASE_URL}/journal/${encodeURIComponent(slug)}`);
+        const res = await fetchWithTimeout(
+          `${API_BASE_URL}/journal/${encodeURIComponent(slug)}`,
+        );
         return handleResponse(res);
       } catch (error) {
-        console.warn('Using demo journal article because the journal API is unavailable:', error);
+        console.warn(
+          "Using demo journal article because the journal API is unavailable:",
+          error,
+        );
         const article = demoArticles.find((item) => item.slug === slug);
-        if (!article) throw new Error('Article not found');
+        if (!article) throw new Error("Article not found");
         return { success: true, article, demo: true };
       }
     },

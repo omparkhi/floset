@@ -1,23 +1,30 @@
-const mongoose = require('mongoose');
-const Booking = require('../models/Booking');
-const Product = require('../models/Product');
+const mongoose = require("mongoose");
+const Booking = require("../models/Booking");
+const Order = require("../models/Order");
+const Product = require("../models/Product");
 const {
   resolveRentalWindow,
   bookingWindow,
   rangesOverlap,
   isActiveBooking,
-  hostBlockOverlaps
-} = require('../utils/bookingOverlap');
+  hostBlockOverlaps,
+} = require("../utils/bookingOverlap");
 
 // Helper to get duration pricing key
 const mapDurationToKey = (duration) => {
   switch (duration) {
-    case '3_hours': return 'duration3h';
-    case '1_day': return 'duration1d';
-    case '3_days': return 'duration3d';
-    case '5_days': return 'duration5d';
-    case '7_days': return 'duration7d';
-    default: return 'duration3d';
+    case "3_hours":
+      return "duration3h";
+    case "1_day":
+      return "duration1d";
+    case "3_days":
+      return "duration3d";
+    case "5_days":
+      return "duration5d";
+    case "7_days":
+      return "duration7d";
+    default:
+      return "duration3d";
   }
 };
 
@@ -33,11 +40,19 @@ exports.createBooking = async (req, res) => {
       endDate,
       startDateTime,
       endDateTime,
-      deliveryAddress
+      deliveryAddress,
     } = req.body;
 
-    if (!productId || !rentalDuration || !startDate || !endDate || !deliveryAddress) {
-      return res.status(400).json({ message: 'Please provide all booking details' });
+    if (
+      !productId ||
+      !rentalDuration ||
+      !startDate ||
+      !endDate ||
+      !deliveryAddress
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Please provide all booking details" });
     }
 
     let reqStart;
@@ -48,7 +63,7 @@ exports.createBooking = async (req, res) => {
         startDate,
         endDate,
         startDateTime,
-        endDateTime
+        endDateTime,
       }));
     } catch (err) {
       return res.status(400).json({ message: err.message });
@@ -59,29 +74,35 @@ exports.createBooking = async (req, res) => {
 
     try {
       const product = await Product.findOne({
-        $or: [{ _id: productId.match(/^[0-9a-fA-F]{24}$/) ? productId : null }, { productId }],
-        status: 'APPROVED'
+        $or: [
+          { _id: productId.match(/^[0-9a-fA-F]{24}$/) ? productId : null },
+          { productId },
+        ],
+        status: "APPROVED",
       }).session(session);
 
       if (!product) {
         await session.abortTransaction();
-        return res.status(404).json({ message: 'Outfit not found or unavailable for rent' });
+        return res
+          .status(404)
+          .json({ message: "Outfit not found or unavailable for rent" });
       }
 
       const hostBlock = hostBlockOverlaps(product, reqStart, reqEnd);
       if (hostBlock) {
         await session.abortTransaction();
         return res.status(409).json({
-          message: 'Outfit is unavailable for the selected period (host blackout).',
-          conflict: hostBlock
+          message:
+            "Outfit is unavailable for the selected period (host blackout).",
+          conflict: hostBlock,
         });
       }
 
       const activeBookings = await Booking.find({
         productId: product._id,
-        orderStatus: { $ne: 'COMPLETED' },
-        depositStatus: { $ne: 'FORFEITED_DAMAGE' },
-        paymentStatus: { $in: ['PENDING', 'PAID'] }
+        orderStatus: { $ne: "COMPLETED" },
+        depositStatus: { $ne: "FORFEITED_DAMAGE" },
+        paymentStatus: { $in: ["PENDING", "PAID"] },
       }).session(session);
 
       const conflict = activeBookings.find((b) => {
@@ -90,19 +111,34 @@ exports.createBooking = async (req, res) => {
         return rangesOverlap(reqStart, reqEnd, bStart, bEnd);
       });
 
-      if (conflict) {
+      const confirmedOrders = await Order.find({
+        "items.productId": product._id,
+        "items.status": { $nin: ["PENDING", "REJECTED", "COMPLETED"] },
+      }).session(session);
+      const orderConflict = confirmedOrders.some((order) =>
+        order.items.some(
+          (item) =>
+            item.productId.toString() === product._id.toString() &&
+            !["PENDING", "REJECTED", "COMPLETED"].includes(item.status) &&
+            rangesOverlap(reqStart, reqEnd, item.startDate, item.endDate),
+        ),
+      );
+
+      if (conflict || orderConflict) {
         await session.abortTransaction();
         return res.status(409).json({
-          message: 'Outfit is already booked for the selected dates. Please select different dates.',
+          message:
+            "Outfit is already booked for the selected dates. Please select different dates.",
           conflictDates: {
             start: conflict.startDateTime || conflict.startDate,
-            end: conflict.endDateTime || conflict.endDate
-          }
+            end: conflict.endDateTime || conflict.endDate,
+          },
         });
       }
 
       const durationKey = mapDurationToKey(rentalDuration);
-      const rentalPrice = product.pricing[durationKey] || product.pricing.duration3d;
+      const rentalPrice =
+        product.pricing[durationKey] || product.pricing.duration3d;
       const securityDeposit = product.securityDeposit || 1000;
       const totalAmount = rentalPrice + securityDeposit;
 
@@ -124,27 +160,27 @@ exports.createBooking = async (req, res) => {
             securityDeposit,
             totalAmount,
             deliveryAddress,
-            paymentStatus: 'PENDING',
-            depositStatus: 'HELD',
-            orderStatus: 'BOOKING_CONFIRMED',
-            hostPayoutStatus: product.ownerId ? 'PENDING' : 'NOT_APPLICABLE',
+            paymentStatus: "PENDING",
+            depositStatus: "HELD",
+            orderStatus: "BOOKING_CONFIRMED",
+            hostPayoutStatus: product.ownerId ? "PENDING" : "NOT_APPLICABLE",
             statusHistory: [
               {
-                status: 'BOOKING_CONFIRMED',
-                note: 'Rental reserved — complete payment to secure outfit with FLOSET concierge.'
-              }
-            ]
-          }
+                status: "BOOKING_CONFIRMED",
+                note: "Rental reserved — complete payment to secure outfit with FLOSET concierge.",
+              },
+            ],
+          },
         ],
-        { session }
+        { session },
       );
 
       await session.commitTransaction();
 
       res.status(201).json({
         success: true,
-        message: 'Rental reserved — complete payment to confirm.',
-        booking
+        message: "Rental reserved — complete payment to confirm.",
+        booking,
       });
     } catch (innerErr) {
       await session.abortTransaction();
@@ -164,15 +200,16 @@ exports.getMyBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ customerId: req.user._id })
       .populate({
-        path: 'productId',
-        select: 'productId name images category size colour pricing securityDeposit'
+        path: "productId",
+        select:
+          "productId name images category size colour pricing securityDeposit",
       })
       .sort({ createdAt: -1 });
 
     res.json({
       success: true,
       count: bookings.length,
-      bookings
+      bookings,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -185,19 +222,29 @@ exports.getMyBookings = async (req, res) => {
 exports.getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findOne({
-      $or: [{ _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null }, { bookingId: req.params.id }]
+      $or: [
+        {
+          _id: req.params.id.match(/^[0-9a-fA-F]{24}$/) ? req.params.id : null,
+        },
+        { bookingId: req.params.id },
+      ],
     }).populate({
-      path: 'productId',
-      select: 'productId name images category size colour'
+      path: "productId",
+      select: "productId name images category size colour",
     });
 
     if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
+      return res.status(404).json({ message: "Booking not found" });
     }
 
     // Verify permission: customer or admin
-    if (booking.customerId.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized to view this booking' });
+    if (
+      booking.customerId.toString() !== req.user._id.toString() &&
+      req.user.role !== "admin"
+    ) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to view this booking" });
     }
 
     res.json(booking);
